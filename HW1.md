@@ -1,20 +1,3 @@
----
-title: "hw1"
-output: html_document
-date: "2023-01-15"
----
-
-```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE)
-```
-
-```{r Install/Load packages, echo=FALSE, message=FALSE, warning=FALSE}
-if(!require('pacman')) {
-  install.packages('pacman')
-}
-pacman::p_load(tidyverse, skimr, nycflights13, gapminder, ggthemes, ggpubr, data.table, plotly)
-```
-
 ## HW1
 
 ## Cleaning Data
