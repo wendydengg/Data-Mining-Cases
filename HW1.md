@@ -1,1 +1,63 @@
+---
+title: "hw1"
+output: html_document
+date: "2023-01-15"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r Install/Load packages, echo=FALSE, message=FALSE, warning=FALSE}
+if(!require('pacman')) {
+  install.packages('pacman')
+}
+pacman::p_load(tidyverse, skimr, nycflights13, gapminder, ggthemes, ggpubr, data.table, plotly)
+```
+
+## HW1
+
+## Cleaning Data
+
+```{r}
+results <- read.csv("Survey_results_final.csv")
+```
+
+```{r}
+cleaned_results <-
+results %>% 
+  select(Answer.Age, Answer.Gender, Answer.Education, Answer.HouseHoldIncome, Answer.Sirius.Radio, Answer.Wharton.Radio, WorkTimeInSeconds) %>% 
+  rename(age = Answer.Age, gender = Answer.Gender, education = Answer.Education, income = Answer.HouseHoldIncome, sirius = Answer.Sirius.Radio, wharton = Answer.Wharton.Radio, worktime = WorkTimeInSeconds) %>% 
+  na.omit() #%>% 
+  #filter(age != "", gender != "", education != "", income != "", sirius != "", wharton != "", worktime != "")
+```
+
+```{r}
+cleaned_results %>%
+  filter(worktime <= 5)
+```
+
+A work time of less than or equal to 5 seconds means that people did not spend enough time to look through the survey at all, so those responses can be disregarded.
+
+## Objective
+
+estimate audience size for the Wharton show
+
+## Approach
+
+estimate the proportion of the Wharton listeners to that of the Sirius listeners, p, so that we will come up with an audience size estimate of approximately 51.6 million times p
+
+```{r}
+# wharton listeners
+cleaned_results %>%
+  group_by(wharton) %>%
+  summarise(wharton_listeners = n())
+```
+
+```{r}
+# sirius listeners 
+cleaned_results %>% 
+  group_by(sirius) %>% 
+  summarise(sirius_listeners = n())
+```
 
