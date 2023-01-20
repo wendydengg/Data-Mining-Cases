@@ -3,7 +3,7 @@
     "path": "~/Data-Mining/README.md",
     "project_path": "README.md",
     "type": "markdown",
-    "hash": "0",
+    "hash": "1159570462",
     "contents": "",
     "dirty": false,
     "created": 1674174414536.0,
@@ -12,7 +12,7 @@
     "properties": {
         "source_window_id": "",
         "Source": "Source",
-        "cursorPosition": "1,12",
+        "cursorPosition": "1,0",
         "scrollLine": "0",
         "rmdVisualMode": "false",
         "rmdVisualWrapConfigured": "true",
@@ -21,11 +21,11 @@
         "rmdVisualModeLocation": "2:0"
     },
     "folds": "",
-    "lastKnownWriteTime": 1674174443,
+    "lastKnownWriteTime": 1674174534,
     "encoding": "UTF-8",
     "collab_server": "",
     "source_window": "",
-    "last_content_update": 1674174443,
+    "last_content_update": 1674174534889,
     "read_only": false,
     "read_only_alternatives": []
 }
