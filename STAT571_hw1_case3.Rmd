@@ -1,0 +1,140 @@
+---
+title: "STAT571_hw1"
+author: "Ruolan Li"
+date: "2023-01-20"
+output: html_document
+---
+
+# Case study 3: Major League Baseball
+
+**Data input**
+
+```{r data input}
+datapay_wide <- read.csv("/Users/ruolanli/Downloads/MLPayData_Total.csv")
+datapay_long <- read.csv("/Users/ruolanli/Downloads/baseball.csv")
+```
+
+
+## 4.1 EDA: Relationship between payroll changes and performance
+
+### (a)
+```{r compare difference and log difference}
+library(dplyr)
+library(ggplot2)
+#plot variable payroll directly
+p1 <- datapay_long %>%
+  ggplot(aes(x = payroll)) +
+  geom_density()
+
+#plot log transformed payroll
+p2 <- datapay_long %>%
+  ggplot(aes(x = log(payroll))) +
+  geom_density()
+
+ggarrange(p1,p2)
+
+```
+
+\ As the density plot shown, the variable payroll is right skewed. After the log transformation, the density plot is much less skewed. Therefore, it is more appropriate to use log difference.
+
+
+### (b)
+```{r create diff_log variable}
+#log transform difference
+datapay_long = datapay_long %>%
+  group_by(team) %>%
+  mutate(diff_log = log(payroll) - log(lag(payroll)))
+head(datapay_long)
+```
+
+
+### (c)
+```{r create long table}
+datapay_long = datapay_long %>%
+  select(team, year, diff_log, win_pct)
+head(datapay_long)
+```
+
+## 4.2 Exploratory questions
+### (a)
+```{r highest increase in payroll between years 2010 and 2014}
+payroll <- datapay_long %>%
+  group_by(team) %>%
+  filter(year %in% c(2010:2014)) %>%
+  summarise(diff_sum = sum(diff_log)) %>% #log(2014)-log(2010) = sum of log(2014)-log(2013)+log(2013)-log(2012)...
+  arrange(desc(diff_sum))
+head(payroll)
+```
+
+\ Los Angeles Dodgers, Washington Nationals, San Diego Padres, Texas Rangers and San Francisco Giants had ighest increase in their payroll between years 2010 and 2014.
+
+
+### (b)
+```{r biggest percentage gain in wins}
+win <- datapay_wide %>%
+  rename("team" = names(.)[1]) %>%
+  select(team, paste0("X", c(2014:2010))) %>%
+  group_by(team) %>%
+  mutate(pct = sum(c_across(X2014:X2010)) / X2010) %>% #calculate percentage between 2010 and 2014
+  arrange(desc(pct))
+head(win)
+```
+
+\ Pittsburgh Pirates had the biggest percentage gain in wins between 2010 and 2014.
+
+
+## 4.3 Do log increases in payroll imply better performance?
+```{r test higher increases in payroll lead to increased performance}
+#scatterplot
+datapay_agg <- payroll %>%
+  inner_join(win, by = c("team" = "team")) %>%
+  select(team,diff_sum,pct)
+datapay_agg
+
+
+datapay_agg %>%
+  ggplot(aes(x = diff_sum, y = pct)) +
+  geom_point(color = "blue", size = 3) +
+  geom_text(aes(label = team), size = 3) +
+  labs(title = "Win Percentage vs. Log Increase in Payroll",
+       x = "Log_increase_in_payroll",
+       y = "Win_pct")
+
+
+```
+```{r}
+#Least Squared Lines
+datapay_agg %>%
+  ggplot(aes(x = diff_sum, y = pct))+
+  geom_point(size = 3)+
+  geom_smooth(method = "lm", formula = y~x, color = "blue")+
+  labs(title = "Win Percentage vs. Log Increase in Payroll",
+       x = "Log_increase_in_payroll",
+       y = "Win_pct")+
+  theme_bw()
+```
+
+
+
+```{r}
+#linear relationship
+fit = lm(pct~diff_sum, data = datapay_agg)
+summary(fit)
+
+#correaltion
+cor(datapay_agg$diff_sum, datapay_agg$pct)
+```
+
+\ No, there is no strong evidence to support the hypothesis that higher increases in payroll on the log scale lead to increased performance. 
+
+\ In the scatter plot, the data points do not cluster tightly. 
+
+\ R-squared in the linear model shows the linear regression model did not fit the data well, indicating no strong linear relationship between log increases in payroll and win percentage.
+
+\ The correlation coefficient is 0.294, indicating a low correlation.
+
+
+## 4.4 Comparison
+
+
+
