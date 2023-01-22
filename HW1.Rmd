@@ -1,13 +1,22 @@
 ## HW1
 
 ## Case study 1:
-Objective: estimate audience size for the Wharton show </p>
-Approach: 
-estimate the proportion of the Wharton listeners to that of the Sirius listeners, p, so that we will come up with an audience size estimate of approximately 51.6 million times p
-### Data prep
+
+Objective: estimate audience size for the Wharton show
+
+Approach: estimate the proportion of the Wharton listeners to that of the Sirius listeners, p, so that we will come up with an audience size estimate of approximately 51.6 million times p
 
 ```{r}
-results <- read.csv("Survey_results_final.csv")
+if(!require('pacman')) {
+  install.packages('pacman')
+}
+pacman::p_load(tidyverse, skimr, nycflights13, gapminder, ggthemes, ggpubr, data.table, plotly)
+```
+
+Data prep
+
+```{r, eval = F}
+results <- read.csv("data/Survey_results_final.csv")
 ```
 
 ```{r}
@@ -25,6 +34,11 @@ cleaned_results %>%
 ```
 
 A work time of less than or equal to 5 seconds means that people did not spend enough time to look through the survey at all, so those responses can be disregarded.
+
+```{r}
+cleaned_results %>%
+  filter(age == "")
+```
 
 ```{r}
 # wharton listeners
