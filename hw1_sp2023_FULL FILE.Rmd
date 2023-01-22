@@ -163,16 +163,46 @@ Our goal is to answer the above questions only through EDA (Exploratory Data Ana
 
 Notice the data came in as an Excel file. We need to use the package `readxl` and the function `read_excel()` to read the data `WomenData_06_16.xlsx` into R. 
 
-
 a). Read the data into R.
+```{r}
+women <- read_xlsx("C:/Users/nighki01/Box Sync/Course Materials/2023 Spring_Data Mining/Homework 1/data/WomenData_06_16.xlsx")
+```
 
 b). Clean the names of each variables. (Change variable names to  `Field`,`Degree`, `Sex`, `Year` and `Number` )
+```{r}
+#Degree, sex, and year are already named as desired. We therefore only rename the "field and sex" and "degrees awarded" variables.
+women <- women %>% rename("Field" = "Field and sex", "Number" = "Degrees Awarded")
+```
 
 c). Set the variable natures properly. 
+```{r}
+#For this dataset, we would like field to be character, degree and sex to be factor, and year and number to be numeric.
+names(women)
+str(women)
+
+women$Degree <- as.factor(women$Degree)
+women$Sex <- as.factor(women$Sex)
+
+str(women)
+  
+```
+
 
 d). Any missing values?
+**There are no missing values in this dataset**
+```{r}
+summary(women)
+colSums(is.na(women))
+```
+
 
 2. Write a summary describing the data set provided here. 
+```{r}
+summary(women)
+table(women$Field)
+table(women$Year)
+
+```
 
 a). How many fields are there in this data?
 
@@ -180,19 +210,95 @@ b). What are the degree types?
 
 c). How many year's statistics are being reported here? 
 
+**This is a dataset that lists the number of degrees conferred by year, sex, field, and degree type. There are five variables and 660 observations. The data includes ten fields of study, three degree types (BS, MS, and PhD), and encompasses 11 years (206-2016, inclusive).**
 
 
 ## BS degrees in 2015
 
 Is there evidence that more males are in science-related fields vs `Non-S&E`? Provide summary statistics and a plot which shows the number of people by gender and by field. Write a brief summary to describe your findings.
 
+**Based on our initial assessment, ignoring degree type and specific field, we can see that there are more females than males who obtain non-S&E degrees than males, while the two sexes are fairly even when it comes to S&E degrees. When looking at the specific field, it appears that there are more females than males who obtain degrees in biology and non- science/engineering fields as well as in psychology and social sciences. Greater numbers of males obtain degrees in computer sciences, engineering, math/statistics, and physical sciences. There seems to be somewhat equal numbers of males and females who receive degrees in agriculture and earth science.**
+```{r warning=FALSE}
+#Grouping by field and sex, creating summary statistic that combines number of all degrees, subsetting to include only data from 2015. Creating separate subsetted dataset which combines all S&E fields.
+subset_2015 <- women %>% 
+  group_by(Field, Sex) %>% 
+  mutate(all_degs = sum(Number)/10000, SE = ifelse(Field != "Non-S&E", "S&E", "Non-S&E")) %>%
+  filter(Year == 2015)
+
+subset_2015_SE <- subset_2015 %>% 
+  group_by(SE, Sex) %>% 
+  summarize(SE_number = sum(all_degs), SE)
+
+#Summary statistics - distinct field, SE versus non-SE
+subset_2015 %>% group_by(Field, Sex) %>% summarize(unique(all_degs))
+subset_2015_SE %>% group_by(SE, Sex) %>% summarise(unique(SE_number))
+
+#Plots
+plot_2015_SE <- ggplot(subset_2015_SE, aes(x=SE, y=SE_number, fill=Sex)) + 
+  geom_bar(stat="identity", position="dodge") +
+  scale_x_discrete(labels = function(x) str_wrap(x, width = 10)) +
+  labs(y = "Number of Degrees (10,000)", title = "Number of Degrees Conferred for S&E Fields versus non-S&E Fields, by Sex") +
+  theme_light()
+plot_2015_SE
+
+plot_2015 <- ggplot(subset_2015, aes(x=Field, y=all_degs, fill=Sex)) + 
+  geom_bar(stat="identity", position="dodge") +
+  scale_x_discrete(labels = function(x) str_wrap(x, width = 10)) +
+  labs(y = "Number of Degrees (10,000)", title = "Number of Degrees Conferred by Degree Type, Field, and Sex") +
+  theme_light()
+plot_2015
+```
+
+
 ## EDA bringing type of degree, field and gender in 2015
 
 Describe the number of people by type of degree, field, and gender. Do you see any evidence of gender effects over different types of degrees? Again, provide graphs to summarize your findings.
 
+**As in our first assessment, a larger number of females as compared to males receive degrees in non- science/engineering fields, regardless of degree type. Notably, whereas we can now see slightly less of a difference in the number of males and females who received Bachelor's degrees in the "hard sciences", the difference between males and females is much more apparent when considering doctoral degrees in the "hard sciences". As an illustration, there are approximately equal numbers of males and females who receive BS and MS degrees in Physical Sciences, but almost double the number of males receive a PhD in that field compared to females.**
+
+**Trends across degree types are easier to observe when we consider science & engineering degrees versus non-science & engineering degrees. Across all degree types, there are more females than males who obtain degrees in non-science & engineering fields. However, whereas at the BS level the number of males and females obtaining science & engineering degrees is similar, slightly more males obtain MS degrees and even more males obtain PhD degrees compared to females.**
+```{r}
+#Grouping by field and sex, creating summary statistic that combines number of all degrees, subsetting to include only data from 2015. Creating separate subsetted dataset which combines all S&E fields.
+subset_2015_degs <- women %>% 
+  group_by(Field, Sex) %>% 
+  mutate(degree_scaled = Number/10000, SE = ifelse(Field != "Non-S&E", "S&E", "Non-S&E")) %>%
+  filter(Year == 2015) 
+
+subset_2015_degs_SE <- subset_2015_degs %>% 
+  group_by(SE, Sex, Degree) %>% 
+  summarize(SE_number = sum(degree_scaled), SE, Degree)
+
+#Summary statistics
+subset_2015_degs %>% group_by(Field, Sex) %>% summarize(Degree, degree_scaled)
+subset_2015_degs_SE %>% group_by(SE, Sex, Degree) %>% summarize(unique(SE_number))
+
+#Plot
+plot_2015_degs_SE <- ggplot(subset_2015_degs_SE, aes(x=SE, y=SE_number, fill=Sex)) + 
+  geom_bar(stat="identity", position="dodge") +
+  scale_x_discrete(labels = function(x) str_wrap(x, width = 10)) + 
+  facet_grid(Degree~., scales = "free_y") +
+  labs(y = "Number of Degrees (10,000)", title = "Number of S&E versus non-S&E Degrees Conferred by Degree Type and Sex") +
+  theme_light()
+plot_2015_degs_SE
+
+plot_2015_degs <- ggplot(subset_2015_degs, aes(x=Field, y=degree_scaled, fill=Sex)) + 
+  geom_bar(stat="identity", position="dodge") +
+  scale_x_discrete(labels = function(x) str_wrap(x, width = 10)) + 
+  facet_grid(Degree~., scales = "free_y") +
+  labs(y = "Number of Degrees (10,000)", title = "Number of Degrees Conferred by Degree Type, Field, and Sex") +
+  theme_light()
+plot_2015_degs
+```
+
+
 ## EDA bring all variables 
 
 In this last portion of the EDA, we ask you to provide evidence numerically and graphically: Do the number of  degrees change by gender, field, and time? 
+
+```{r}
+
+```
+
 
 ## Women in Data Science
 
@@ -211,12 +317,12 @@ To help out, we have included some R-codes here as references. You should make y
 ```{r data wrangling, echo = FALSE, warning = FALSE}
 # For the demonstration purpose, we show this R-chunk by taking echo=TRUE
 # In your final report you should hide all the R-chunks to keep your report flowing well.
-wsci <- read_excel("WomenData_06_16.xlsx")
+wsci <- read_excel("C:/Users/nighki01/Box Sync/Course Materials/2023 Spring_Data Mining/Homework 1/data/WomenData_06_16.xlsx")
 names(wsci)
 head(wsci)
 #change names
 wsci %<>% 
-  rename(Field = 'Field and sex')
+  rename(Field = 'Field and sex', Number = "Degrees Awarded")
 # set the field, degree and sex as factors
 wsci %<>% 
   mutate( Field = as.factor(Field))
@@ -224,12 +330,12 @@ wsci %<>%
 
 
 ```{r, echo=FALSE}
-# wsci %<>%
-#   rename(Field = "Field and sex",
-#          Number = "Degrees Awarded") %>%
-#   mutate(Field = as.factor(Field),
-#          Degree = as.factor(Degree),
-#          Sex = as.factor(Sex))
+#wsci %<>%
+# rename(Field = "Field and sex",
+#        Number = "Degrees Awarded") %>%
+# mutate(Field = as.factor(Field),
+#        Degree = as.factor(Degree),
+#        Sex = as.factor(Sex))
 
 ```
 
