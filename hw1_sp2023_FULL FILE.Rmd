@@ -30,7 +30,7 @@ knitr::opts_chunk$set(echo = FALSE, results = "hide", fig.width=8, fig.height=4)
 options(scipen = 0, digits = 3)  # controls base R output
 # check if you have ISLR package, if not, install it
 if(!require('pacman')) {install.packages('pacman')}
-pacman::p_load(ISLR, readxl, tidyverse, magrittr, dplyr, ggplot2)
+pacman::p_load(ISLR, readxl, tidyverse, magrittr, dplyr, ggplot2, pander)
 ```
 
 
@@ -164,20 +164,19 @@ Our goal is to answer the above questions only through EDA (Exploratory Data Ana
 Notice the data came in as an Excel file. We need to use the package `readxl` and the function `read_excel()` to read the data `WomenData_06_16.xlsx` into R. 
 
 a). Read the data into R.
-```{r}
+```{r load data, echo = TRUE}
 women <- read_xlsx("C:/Users/nighki01/Box Sync/Course Materials/2023 Spring_Data Mining/Homework 1/data/WomenData_06_16.xlsx")
 ```
 
 b). Clean the names of each variables. (Change variable names to  `Field`,`Degree`, `Sex`, `Year` and `Number` )
-```{r}
+```{r variable names, echo = TRUE}
 #Degree, sex, and year are already named as desired. We therefore only rename the "field and sex" and "degrees awarded" variables.
 women <- women %>% rename("Field" = "Field and sex", "Number" = "Degrees Awarded")
 ```
 
 c). Set the variable natures properly. 
-```{r}
+```{r variable types, echo = TRUE, results='markup', warning=FALSE}
 #For this dataset, we would like field to be character, degree and sex to be factor, and year and number to be numeric.
-names(women)
 str(women)
 
 women$Degree <- as.factor(women$Degree)
@@ -190,14 +189,14 @@ str(women)
 
 d). Any missing values?
 **There are no missing values in this dataset**
-```{r}
+```{r missing, echo = TRUE, results = 'markup'}
 summary(women)
 colSums(is.na(women))
 ```
 
 
 2. Write a summary describing the data set provided here. 
-```{r}
+```{r summary, echo = TRUE, results='markup'}
 summary(women)
 table(women$Field)
 table(women$Year)
@@ -210,15 +209,16 @@ b). What are the degree types?
 
 c). How many year's statistics are being reported here? 
 
-**This is a dataset that lists the number of degrees conferred by year, sex, field, and degree type. There are five variables and 660 observations. The data includes ten fields of study, three degree types (BS, MS, and PhD), and encompasses 11 years (206-2016, inclusive).**
+**This is a dataset that lists the number of degrees conferred by year, sex, field, and degree type. There are five variables and 660 observations. The data includes ten fields of study, three degree types (BS, MS, and PhD), and encompasses 11 years (2006-2016, inclusive).**
 
 
 ## BS degrees in 2015
 
 Is there evidence that more males are in science-related fields vs `Non-S&E`? Provide summary statistics and a plot which shows the number of people by gender and by field. Write a brief summary to describe your findings.
 
-**Based on our initial assessment, ignoring degree type and specific field, we can see that there are more females than males who obtain non-S&E degrees than males, while the two sexes are fairly even when it comes to S&E degrees. When looking at the specific field, it appears that there are more females than males who obtain degrees in biology and non- science/engineering fields as well as in psychology and social sciences. Greater numbers of males obtain degrees in computer sciences, engineering, math/statistics, and physical sciences. There seems to be somewhat equal numbers of males and females who receive degrees in agriculture and earth science.**
-```{r warning=FALSE}
+**Based on our initial assessment, ignoring degree type and specific field/major, we can see that there are more females than males who obtain non-S&E degrees than males, while the two sexes are fairly even when it comes to S&E degrees. When looking at the specific field, it appears that there are more females than males who obtain degrees in biology and non- science/engineering fields as well as in psychology and social sciences. Greater numbers of males obtain degrees in computer sciences, engineering, math/statistics, and physical sciences. There seems to be somewhat equal numbers of males and females who receive degrees in agriculture and earth science.**
+
+```{r 2015 field and sex, echo = TRUE, message = FALSE, results = 'markup'}
 #Grouping by field and sex, creating summary statistic that combines number of all degrees, subsetting to include only data from 2015. Creating separate subsetted dataset which combines all S&E fields.
 subset_2015 <- women %>% 
   group_by(Field, Sex) %>% 
@@ -254,10 +254,12 @@ plot_2015
 
 Describe the number of people by type of degree, field, and gender. Do you see any evidence of gender effects over different types of degrees? Again, provide graphs to summarize your findings.
 
+**Trends across degree types are easiest to observe when we consider science & engineering degrees versus non-science & engineering degrees. Across all degree types, there are more females than males who obtain degrees in non-science & engineering fields. However, whereas at the BS level the number of males and females obtaining science & engineering degrees is similar, slightly more males obtain MS degrees and even more males obtain PhD degrees compared to females.**
+
 **As in our first assessment, a larger number of females as compared to males receive degrees in non- science/engineering fields, regardless of degree type. Notably, whereas we can now see slightly less of a difference in the number of males and females who received Bachelor's degrees in the "hard sciences", the difference between males and females is much more apparent when considering doctoral degrees in the "hard sciences". As an illustration, there are approximately equal numbers of males and females who receive BS and MS degrees in Physical Sciences, but almost double the number of males receive a PhD in that field compared to females.**
 
-**Trends across degree types are easier to observe when we consider science & engineering degrees versus non-science & engineering degrees. Across all degree types, there are more females than males who obtain degrees in non-science & engineering fields. However, whereas at the BS level the number of males and females obtaining science & engineering degrees is similar, slightly more males obtain MS degrees and even more males obtain PhD degrees compared to females.**
-```{r}
+
+```{r 2015 field sex and degree, echo = TRUE, message = FALSE, results = 'markup'}
 #Grouping by field and sex, creating summary statistic that combines number of all degrees, subsetting to include only data from 2015. Creating separate subsetted dataset which combines all S&E fields.
 subset_2015_degs <- women %>% 
   group_by(Field, Sex) %>% 
@@ -293,9 +295,57 @@ plot_2015_degs
 
 ## EDA bring all variables 
 
-In this last portion of the EDA, we ask you to provide evidence numerically and graphically: Do the number of  degrees change by gender, field, and time? 
+In this last portion of the EDA, we ask you to provide evidence numerically and graphically: Do the number of degrees change by gender, field, and time? 
+**Trends over time indicate that ignoring sex, the number of BS and MS degrees conferred each year has increased over time, while the number of PhD degrees conferred has remained relatively stable. The proportion of women in science and engineering fields has decreased over time, and effect that is relatively consistent for BS, MS, and PhD degrees.**
 
-```{r}
+```{r field sex degree and year, echo = TRUE, message = FALSE, results = 'markup'}
+#Proportion female in SE/non-SE fields by year
+women_prop <- women %>% 
+  mutate(SE = ifelse(Field!="Non-S&E" , "S&E", "Non-S&E")) %>%
+  group_by(SE, Sex, Year) %>%
+  summarise(SE_number = sum(Number)) %>%
+  group_by(SE, Year) %>%
+  mutate(ratio = SE_number / sum(SE_number)) %>%
+  filter(Sex == "Female")
+
+pander(women_prop)
+
+plot_propf <- women_prop %>% ggplot(aes(x = Year, y = ratio, color = SE)) +
+  geom_point() + geom_line() +
+  ggtitle("Proportion of females obtaining SE/non-SE degrees over time")
+plot_propf
+
+#Proportion female in SE/non-SE fields by degree and year
+women_prop_deg <- women %>% 
+  mutate(SE = ifelse(Field!="Non-S&E" , "S&E", "Non-S&E")) %>%
+  group_by(SE, Sex, Degree, Year) %>%
+  summarise(SE_number = sum(Number)) %>%
+  group_by(SE, Degree, Year) %>%
+  mutate(ratio = SE_number / sum(SE_number)) %>%
+  filter(Sex == "Female")
+
+pander(women_prop_deg)
+
+plot_propf_deg <- women_prop_deg %>% ggplot(aes(x = Year, y = ratio, color = SE)) +
+  geom_point() + geom_line() + 
+  facet_grid(Degree~., scales = "free_y") +
+  ggtitle("Proportion of females obtaining SE/non-SE degrees over time, by degree type")
+plot_propf_deg
+
+#Both sexes, SE/non-SE fields over time by degree and year. Number of degrees scaled to 10,000
+women_deg <- women %>% 
+  mutate(SE = ifelse(Field!="Non-S&E" , "S&E", "Non-S&E"), num_scaled = Number/10000) %>%
+  group_by(SE, Sex, Degree, Year) %>%
+  summarise(SE_number = sum(num_scaled)) 
+
+pander(women_deg)
+
+plot_deg <- women_deg %>% ggplot(aes(x = Year, y = SE_number, fill = Sex)) +
+  geom_bar(stat = "identity", position = "dodge") +
+  facet_grid(SE~Degree, scales = "free_y") +
+    labs(y = "Number of Degrees (10,000)", title = "Number of Degrees Conferred by Degree Type, Field, and Sex Over Time")
+plot_deg
+
 
 ```
 
@@ -304,126 +354,51 @@ In this last portion of the EDA, we ask you to provide evidence numerically and 
 
 Finally, is there evidence showing that women are underrepresented in data science? Data science is an interdisciplinary field of computer science, math, and statistics. You may include year and/or degree.
 
+**Based on our descriptive analysis, it appears that women are underrepresented in data science, with less that 30% of data science degrees being conferred to women in any given year. We can see that the proportion of MS in data science degrees conferred to women has increased over time, while there was an initial decline in the proportion of BS degrees which is increasing again. The proportion of PhD degrees conferred to women has remained somewhat constant over time with fluctuations from year to year. Overall, there are larger numbers of data science degrees being conferred, most notably for MS degrees.**
+
+```{r women in data science, echo = TRUE, message = FALSE, results = 'markup'}
+#Proportion of women in data science (combines computer science and math/statistics)
+women_datasci <- women %>% 
+  mutate(datasci = ifelse(Field == "Computer sciences", "yes", ifelse(Field == "Mathematics & statistics", "yes", "no"))) %>%
+  group_by(datasci, Sex, Year, Degree) %>%
+  summarise(datasci_number = sum(Number)) %>%
+  group_by(datasci, Year, Degree) %>%
+  mutate(ratio = datasci_number / sum(datasci_number)) %>%
+  filter(Sex == "Female" & datasci == "yes")
+
+plot_women_datasci <- women_datasci %>%
+  ggplot(aes(x = Year, y = ratio, color = Degree)) + 
+  geom_point() + geom_line() + 
+  labs(title = "Proportion of Women Obtaining Data Science Degrees Over Time")
+plot_women_datasci
+
+#Number of degrees in data science by sex
+datasci <- women %>%
+    mutate(datasci = ifelse(Field == "Computer sciences", "yes", ifelse(Field == "Mathematics & statistics", "yes", "no"))) %>%
+  group_by(datasci, Sex, Year, Degree) %>%
+  summarise(datasci_number = sum(Number)) %>%
+  group_by(datasci, Year, Degree) %>%
+  mutate(ratio = datasci_number / sum(datasci_number)) %>%
+  filter(datasci == "yes")
+
+plot_datasci <- datasci %>%
+  mutate(datasci_scaled = datasci_number/10000) %>%
+  ggplot(aes(x = Year, y = datasci_scaled, fill = Sex)) + 
+    geom_bar(stat = "identity", position = "dodge") +
+  facet_grid(Degree~., scales = "free_y") +
+    labs(y = "Number of Degrees (10,000)", title = "Number of Data Science Degrees Conferred by Degree Type and Sex Over Time")
+plot_datasci
+
+```
+
+
 ## Final brief report
 
 Summarize your findings focusing on answering the questions regarding if we see consistent patterns that more males pursue science-related fields. Any concerns with the data set? How could we improve on the study?
 
-## Appendix
+**In general, we observe evidence that more males than females obtain science and engineering degrees, and this is most notable at the PhD level. Although the total number of science and engineering degrees appear to be increasing over time, the proportion of degrees conferred to females in these fields has remained constant or slightly decreased. One exception to this trend is the field of data science, where we observe increasing numbers of MS degrees being conferred to females over time.**
 
-To help out, we have included some R-codes here as references. You should make your own chunks filled with texts going through each items listed above. Make sure to hide the unnecessary outputs/code etc. 
-
-1. Clean data
-
-```{r data wrangling, echo = FALSE, warning = FALSE}
-# For the demonstration purpose, we show this R-chunk by taking echo=TRUE
-# In your final report you should hide all the R-chunks to keep your report flowing well.
-wsci <- read_excel("C:/Users/nighki01/Box Sync/Course Materials/2023 Spring_Data Mining/Homework 1/data/WomenData_06_16.xlsx")
-names(wsci)
-head(wsci)
-#change names
-wsci %<>% 
-  rename(Field = 'Field and sex', Number = "Degrees Awarded")
-# set the field, degree and sex as factors
-wsci %<>% 
-  mutate( Field = as.factor(Field))
-```
-
-
-```{r, echo=FALSE}
-#wsci %<>%
-# rename(Field = "Field and sex",
-#        Number = "Degrees Awarded") %>%
-# mutate(Field = as.factor(Field),
-#        Degree = as.factor(Degree),
-#        Sex = as.factor(Sex))
-
-```
-
-
-2. A number of sample analyses 
-
-```{r eval = FALSE, echo = FALSE}
-wsci %>%  # to get the average number of ppl by gender
-  group_by(Field, Sex) %>%
-  summarise(deg = mean(Number))
-
-wsci %>%
-  filter(Year == 2007) %>%
-  ggplot(aes(x = Field, y = Number, fill = Sex)) +
-  geom_bar(stat = "identity", position = "dodge") +
-  facet_grid(Degree~., scales = "free_y") +
-  theme(axis.text.x = element_text(angle = 30, hjust = 1)) +
-  ggtitle("Degrees granted across fields by degree and gender") 
-
-wsci %>%
-  mutate(SE = ifelse(Field!="Non-S&E" , "S&E", "Non-S&E")) %>%
-  group_by(SE, Sex) %>%
-  summarise(SE_number = sum(Number)) %>%
-  ggplot(aes(x = SE, y = SE_number, fill = Sex)) +
-  geom_bar(stat = "identity", position = "dodge") +
-  theme(axis.text.y = element_text(angle = 60)) +
-  ggtitle("Degrees granted by S&E vs non-S&E by gender")
-
-wsci %>%
-  mutate(SE = ifelse(Field!="Non-S&E" , "S&E", "Non-S&E")) %>%
-  group_by(SE, Sex, Year) %>%
-  summarise(SE_number = sum(Number)) %>%
-  group_by(SE, Year) %>%
-  mutate(ratio = SE_number / sum(SE_number)) %>%
-  filter(Sex == "Female") %>%
-  ggplot(aes(x = Year, y = ratio, color = SE)) +
-  geom_point() + geom_line() +
-  ggtitle("Female proportion in SE/non-SE across year")
-
-wsci %>%
-  mutate(SE = ifelse(Field!="Non-S&E" , "S&E", "Non-S&E")) %>%
-  group_by(SE, Sex, Year, Degree) %>%
-  summarise(SE_number = sum(Number)) %>%
-  group_by(SE, Year, Degree) %>%
-  mutate(ratio = SE_number / sum(SE_number)) %>%
-  filter(Sex == "Female") %>%
-  ggplot(aes(x = Year, y = ratio, color = SE)) +
-  geom_point() + geom_line() +
-  facet_grid(~Degree)+
-  ggtitle("Female proportion in SE/non-SE across year by degree")
-
-
-wsci %>%
-  mutate(SE = ifelse(Field!="Non-S&E" , "S&E", "Non-S&E")) %>%
-  group_by(SE, Sex, Year, Degree) %>%
-  summarise(SE_number = sum(Number)) %>%
-  ggplot(aes(x = Year, y = SE_number, fill = Sex)) +
-  geom_bar(stat = "identity", position = "dodge") +
-  facet_grid(SE~Degree, scales = "free_y") +
-  ggtitle("Degrees granted by sex, degree and SE")
-
-
-wsci %>%
-  mutate(SE = ifelse(Field!="Non-S&E" , "S&E", "Non-S&E")) %>%
-  group_by(SE, Sex, Year, Degree) %>%
-  summarise(SE_number = sum(Number)) %>%
-  ggplot(aes(x = Year, y = SE_number, fill = Sex)) +
-  geom_bar(stat = "identity", position = "fill") +
-  facet_grid(SE~Degree, scales = "free_y") +
-  ggtitle("Degrees granted proportion by sex across degree and SE")
-
-
-wsci %>%
-  filter(Field %in% c("Computer sciences", "Mathematics and statistics")) %>%
-  ggplot(aes(x = Year, y = Number, fill = Sex)) +
-  geom_bar(stat = "identity", position = "dodge") +
-  facet_grid(Field~Degree, scales = "free_y") +
-  ggtitle("Degrees granted pr option by sex across degree and SE")
-
-
-wsci %>%
-  ggplot(aes(x = Year, y = Number, fill = Sex)) +
-  geom_bar(stat = "identity", position = "dodge") +
-  facet_grid(Field~Degree, scales = "free_y") +
-  ggtitle("Degrees granted proportion by sex across degree and SE")
-```
-
-
+**One potential concern with the data set is that it is limited to BS, MS, and PhD degrees - it is possible that inclusion of other degree types (such as BA and MA) could impact the results. It could also be of interest to incorporate career information, as receipt of a science/engineering degree does not necessarily mean the individual ended up working in that field (and vice-versa). Finally, it would be helpful to further specify the research question to specific fields, or better define what fields count as "science", as we can see when looking at individual fields that trends are not consistent across fields.**
 
 
 # Case study 3: Major League Baseball
