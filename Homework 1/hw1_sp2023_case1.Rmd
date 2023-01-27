@@ -25,11 +25,16 @@ urlcolor: blue
 ---
 
 ```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = FALSE, results = "hide", fig.width=8, fig.height=4)
+knitr::opts_chunk$set(echo = TRUE, fig.width=8, fig.height=4)
 options(scipen = 0, digits = 3)  # controls base R output
-# check if you have ISLR package, if not, install it
-if(!require('pacman')) {install.packages('pacman')}
-pacman::p_load(ISLR, readxl, tidyverse, magrittr, dplyr, ggplot2)
+if(!require('pacman')) {
+  install.packages('pacman')
+}
+pacman::p_load(ggplot2, dplyr, tidyverse, gridExtra, ggrepel, plotly, skimr, tidytext) 
+# install a package if it does not exist already and put the package in the path (library)
+# dplyr, ggplot2,tidyr
+# install.packages('ggplot2')
+#library(ggplot2)
 ```
 
 \pagebreak
@@ -169,7 +174,7 @@ summary(results$age) # to see the (Other) levels under age and change the incorr
 
 Write a brief report to summarize all the variables collected. Include both summary statistics (including sample size) and graphical displays such as histograms or bar charts where appropriate. Comment on what you have found from this sample. (For example - it's very interesting to think about why would one work for a job that pays only 10cents/each survey? Who are those survey workers? The answer may be interesting even if it may not directly relate to our goal.)
 
-**After cleaning the data, we have 1725 individuals in our sample. There are 729 female and 996 male (ratio of 0.42 : 0.58), and age ranges from 18 to 76. According to the histogram of age distribution, **
+**After cleaning the data, we have 1725 individuals in our sample. There are 729 female and 996 male (ratio of 0.42 : 0.58), and age ranges from 18 to 76. As seen from the histograms of age, education, and income: the distribution of age is right-skewed with a mean of 30.3 and a median of 28, 78.6% of the sample graduated from college with a Bachelor's or Associate's degree, and income distribution tells us that people who earn above $150,000 participated the least.**
 
 ```{r summary statistics and graphs}
 # convert character to integer for datatype of age and worktime for calculation
@@ -179,7 +184,24 @@ results$worktime <- as.integer(as.character(results$worktime))
 skimr::skim(results)
 summary(results)
 
-# age distribution
+# age, education, and income distribution histograms
+age <- ggplot(results) + 
+  geom_histogram(aes(x = age), bins = 10, fill = "darkblue") +
+  labs( title = "Histogram of Age", x = "Age" , y = "Frequency")
+
+education <- ggplot(results) + 
+  geom_histogram(aes(x = education), stat="count", fill = "blue") +
+  labs( title = "Histogram of Education", x = "Education" , y = "Frequency") +
+  theme(axis.text.x = element_text(angle = -60)) 
+
+college_prop = (611+745)/1725
+
+income <- ggplot(results) + 
+  geom_histogram(aes(x = income), stat="count", fill = "lightblue") +
+  labs( title = "Histogram of Income", x = "Income" , y = "Frequency") +
+  theme(axis.text.x = element_text(angle = -60)) 
+
+grid.arrange(age, education, income, ncol = 3) 
 
 ```
 
