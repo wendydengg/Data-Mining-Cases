@@ -93,54 +93,88 @@ The raw data is stored as `Survey_results_final.csv` on Canvas.
 Select only the variables Age, Gender, Education Level, Household Income in 2013, Sirius Listener?, Wharton Listener? and Time used to finish the survey.
 
 ```{r, eval = F}
-results <- read.csv("data/Survey_results_final.csv")
+survey_results <- read.csv("data/Survey_results_final.csv")
 ```
 
 Change the variable names to be "age", "gender", "education", "income", "sirius", "wharton", "worktime".
 
 ```{r, cleaning}
-cleaned_results <-
-results %>% 
+results <-
+survey_results %>% 
+  # select only the variables Age, Gender, Education Level, Household Income in 2013, Sirius Listener?, Wharton Listener? and Time used to finish the survey
   select(Answer.Age, Answer.Gender, Answer.Education, Answer.HouseHoldIncome, Answer.Sirius.Radio, Answer.Wharton.Radio, WorkTimeInSeconds) %>% 
+  # change the variable names to be "age", "gender", "education", "income", "sirius", "wharton", "worktime"
   rename(age = Answer.Age, gender = Answer.Gender, education = Answer.Education, income = Answer.HouseHoldIncome, sirius = Answer.Sirius.Radio, wharton = Answer.Wharton.Radio, worktime = WorkTimeInSeconds) %>% 
-  na.omit() #%>% 
-  #filter(age != "", gender != "", education != "", income != "", sirius != "", wharton != "", worktime != "")
+  # omit any row with NA because they will introduce noise into our data
+  na.omit()
+
+names(results)
+str(results)
 ```
 
-```{r, variable name}
-names(cleaned_results)
+```{r, factoring}
+# we want to see what kinds of results are available for each variable
+results$age <- as.factor(results$age)
+results$gender <- as.factor(results$gender)
+results$education <- as.factor(results$education)
+results$income <- as.factor(results$income)
+results$sirius <- as.factor(results$sirius)
+results$wharton <- as.factor(results$wharton)
+results$worktime <- as.factor(results$worktime)
+
+summary(results)
 ```
 
 2.  Handle missing/wrongly filled values of the selected variables
-
-```{r, omit missing data}
-cleaned_results <-
-  cleaned_results %>%
-  filter(age != "", gender != "", education != "", income != "", sirius != "", wharton != "", worktime != "")
-```
 
 As in real world data with user input, the data is incomplete, with missing values, and has incorrect responses. There is no general rule for dealing with these problems beyond "use common sense." In whatever case, explain what the problems were and how you addressed them. Be sure to explain your rationale for your chosen methods of handling issues with the data. Do not use Excel for this, however tempting it might be.
 
 Tip: Reflect on the reasons for which data could be wrong or missing. How would you address each case? For this homework, if you are trying to predict missing values with regression, you are definitely overthinking. Keep it simple.
 
-Some rows were completely void of data because the worktime is less than or equal to 5 seconds, meaning the people who took the survey probably did not look through anything and clicked submit. In that case, those rows can be disregarded. Since we are interested in the number of Wharton listeners and Sirius listeners, rows with missing entries in either "wharton" or "sirius" can also be disregarded. As for other missing entries, since we are interested in finding the type of audience for both radio channels, we would want all entries to be filled to avoid inconsistency in our data analysis, so we are left with rows with all entries filled in.
+**We should remove rows with empty entries due to possible nonresponse bias from incomplete data, but we will take a look at those rows first and decide how trustworthy they are. As we can see, most rows with only one or two entries missing seem to be credible, but others with multiple entries missing seem like the person did not put effort into answering the survey. Since our sample size is sufficiently large compared to the 17 rows with incomplete data, we can omit these rows from our analysis. Moreover, we should removes rows with incorrect entries, and we can display those using summary() on each of the factors. Examples of incorrect data in this case include "select one" under education, and those who selected "Yes" to wharton but "No" to sirius because that is not possible when the wharton radio is one of the channels of sirius.**
 
+```{r, remove incomplete and incorrect data}
+results %>%
+  # view rows with incomplete data
+  filter(age == "" | gender == "" | education == "" | income == "" | sirius == "" | wharton == "" | worktime == "")
+
+results <- results %>%
+  # keep only the rows that are not empty
+  filter(age != "", gender != "", education != "", income != "", sirius != "", wharton != "", worktime != "") %>% 
+  
+  # remove rows with incorrect data entry
+  filter(education != "select one") %>% # remove "select one" under education
+  filter(!(wharton == "Yes" & sirius == "No")) %>% # remove inconsistent answers
+  filter(age != "female") %>% # remove incorrect entry
+  filter(age != "223") %>% # remove incorrect entry
+  filter(age != "4") %>% # remove incorrect entry
+  mutate(age = recode(age, "Eighteen (18)" = "18")) %>% # change "Eighteen (18)" to "18" under age
+  mutate(age = recode(age, "27`" = "27")) # change "Eighteen (18)" to "18" under age
+
+results <- droplevels(results) # drop levels in the factors after removing data
+summary(results)
+
+summary(results$age) # to see the (Other) levels under age and change the incorrect data entries accordingly
+```
 3.  Brief summary
 
 Write a brief report to summarize all the variables collected. Include both summary statistics (including sample size) and graphical displays such as histograms or bar charts where appropriate. Comment on what you have found from this sample. (For example - it's very interesting to think about why would one work for a job that pays only 10cents/each survey? Who are those survey workers? The answer may be interesting even if it may not directly relate to our goal.)
 
+**gender: female vs male**
+
 ```{r}
-male <-
-cleaned_results %>%
-  filter(gender == 'Male') %>%
-  summarise(ave_age = sum(age)/1007)
+male <- results %>%
+  filter(gender == 'Male') #%>%
+  #summarise(ave_age = sum(age)/1007)
 ```
 
 ```{r}
-female <-
-cleaned_results %>%
+female <- results %>%
   filter(gender == 'Female')
 ```
+
+****
+
 
 ## Sample properties
 
