@@ -110,6 +110,15 @@ survey_results %>%
 
 names(results)
 str(results)
+
+# get datatype of each column so we can convert them back to original datatype later on
+print(class(results$age))
+print(class(results$gender))
+print(class(results$education))
+print(class(results$income))
+print(class(results$sirius))
+print(class(results$wharton))
+print(class(results$worktime))
 ```
 
 ```{r, factoring}
@@ -160,18 +169,21 @@ summary(results$age) # to see the (Other) levels under age and change the incorr
 
 Write a brief report to summarize all the variables collected. Include both summary statistics (including sample size) and graphical displays such as histograms or bar charts where appropriate. Comment on what you have found from this sample. (For example - it's very interesting to think about why would one work for a job that pays only 10cents/each survey? Who are those survey workers? The answer may be interesting even if it may not directly relate to our goal.)
 
-**gender: female vs male**
+**After cleaning the data, we have 1725 individuals in our sample. There are 729 female and 996 male (ratio of 0.42 : 0.58), and age ranges from 18 to 76. According to the histogram of age distribution, **
 
-```{r}
-male <- results %>%
-  filter(gender == 'Male') #%>%
-  #summarise(ave_age = sum(age)/1007)
+```{r summary statistics and graphs}
+# convert character to integer for datatype of age and worktime for calculation
+results$age = as.integer(as.character(results$age)) 
+results$worktime <- as.integer(as.character(results$worktime)) 
+
+skimr::skim(results)
+summary(results)
+
+# age distribution
+
 ```
 
-```{r}
-female <- results %>%
-  filter(gender == 'Female')
-```
+
 
 ****
 
