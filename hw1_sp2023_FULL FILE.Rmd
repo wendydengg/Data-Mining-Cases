@@ -6,6 +6,10 @@ author:
 - Group Member 3: Kira Nightingale
 date: 'Due: 11:59PM,  Jan. 29th, 2023'
 output:
+  pdf_document:
+    number_sections: yes
+    toc: yes
+    toc_depth: '4'
   html_document:
     code_folding: show
     highlight: haddock
@@ -14,10 +18,6 @@ output:
     toc: yes
     toc_depth: 4
     toc_float: yes
-  pdf_document:
-    number_sections: yes
-    toc: yes
-    toc_depth: '4'
   word_document:
     toc: yes
     toc_depth: '4'
@@ -425,17 +425,81 @@ a). To describe the increment of payroll in each year there are several possible
 
 Explain why the log difference is more appropriate in this setup.
 
+```{r data input, include=FALSE}
+library(dplyr)
+library(ggplot2)
+library(ggpubr)
+datapay_wide <- read.csv("/Users/ruolanli/Downloads/MLPayData_Total.csv")
+datapay_long <- read.csv("/Users/ruolanli/Downloads/baseball.csv")
+```
+
+```{r compare difference and log difference, echo=FALSE}
+#plot variable payroll directly
+p1 <- datapay_long %>%
+  ggplot(aes(x = payroll)) +
+  geom_density()
+
+#plot log transformed payroll
+p2 <- datapay_long %>%
+  ggplot(aes(x = log(payroll))) +
+  geom_density()
+
+ggarrange(p1,p2)
+
+```
+
+\ 1. As the density plot shown, the variable payroll is right skewed. After the log transformation, the density plot is much less skewed. Therefore, it is more appropriate to use log difference.
+
+\ 2. Because of the mathematical properties of logarithm: $log(a)-log(b)=log(\frac{a}{b})$, the logarithm transformation converts absolute difference into relative difference.
+
 b). Create a new variable `diff_log=log(payroll_2013) - log(payroll_2012)`. Hint: use `dplyr::lag()` function.
 
+```{r create diff_log variable, echo=FALSE}
+#log transform difference
+datapay_long = datapay_long %>%
+  group_by(team) %>%
+  mutate(diff_log = log(payroll) - log(lag(payroll)))
+head(datapay_long)
+```
+
 c). Create a long data table including: team, year, diff_log, win_pct
+
+```{r create long table, echo=FALSE}
+datapay_long = datapay_long %>%
+  select(team, year, diff_log, win_pct)
+head(datapay_long)
+```
+
 
 
 ## Exploratory questions
 
 a). Which five teams had highest increase in their payroll between years 2010 and 2014, inclusive?
 
+```{r highest increase in payroll between years 2010 and 2014, echo=FALSE}
+payroll <- datapay_long %>%
+  group_by(team) %>%
+  filter(year %in% c(2010:2014)) %>%
+  summarise(diff_sum = sum(diff_log)) %>% #log(2014)-log(2010) = sum of log(2014)-log(2013)+log(2013)-log(2012)...
+  arrange(desc(diff_sum))
+head(payroll)
+```
+
+\ Los Angeles Dodgers, Washington Nationals, San Diego Padres, Texas Rangers and San Francisco Giants had ighest increase in their payroll between years 2010 and 2014.
+
 b). Between 2010 and 2014, inclusive, which team(s) "improved" the most? That is, had the biggest percentage gain in wins?
 
+```{r, echo=FALSE}
+win <- datapay_wide %>%
+  rename("team" = names(.)[1]) %>%
+  select(team, paste0("X", c(2014,2010),".pct")) %>%
+  group_by(team) %>%
+  mutate(pct = X2014.pct - X2010.pct) %>% #difference of percentage
+  arrange(desc(pct))
+head(win)
+```
+
+\ Pittsburgh Pirates had the biggest percentage gain in wins between 2010 and 2014.
 
 ## Do log increases in payroll imply better performance? 
 
@@ -443,11 +507,71 @@ Is there evidence to support the hypothesis that higher increases in payroll on 
 
 Pick up a few statistics, accompanied with some data visualization, to support your answer. 
 
+```{r test higher increases in payroll lead to increased performance, echo=FALSE}
+data_final <- datapay_long %>%
+  group_by(team) %>%
+  summarise(payroll_mean = mean(diff_log, na.rm = TRUE),
+            win_pct_mean = mean(win_pct)) 
+
+data_final %>%
+  ggplot(aes(x = payroll_mean, y = win_pct_mean)) +
+  geom_point(color = "blue", size = 3) +
+  geom_text(aes(label = team), size = 3) +
+  labs(title = "Win Percentage vs. Log Increase in Payroll",
+       x = "Log_increase_in_payroll",
+       y = "Win_pct")
+```
+
+
+```{r, echo=FALSE}
+#Least Squared Lines
+data_final %>%
+  ggplot(aes(x = payroll_mean, y = win_pct_mean))+
+  geom_point(size = 3)+
+  geom_smooth(method = "lm", formula = y~x, color = "blue")+
+  labs(title = "Win Percentage vs. Log Increase in Payroll",
+       x = "Log_increase_in_payroll",
+       y = "Win_pct")+
+  theme_bw()
+```
+
+\ No, there is no strong evidence to support the hypothesis that higher increases in payroll on the log scale lead to increased performance. 
+
+\ In the scatter plot, the data points do not cluster tightly. 
+
+```{r, echo=FALSE}
+datapay_long %>%
+  ggplot(aes(x=diff_log, y=win_pct, group = year, color=team)) +
+  geom_point()+
+  geom_smooth(method="lm", formula=y~x, se=F,color = "red")+
+  facet_wrap(~year) + 
+  theme_bw() +
+  theme(legend.position = 0)
+```
+
+\ The plot indicates that log increases in payroll and performance is not consistently positively related in some years.
+
+```{r, echo=FALSE}
+#linear relationship
+fit1 = lm(win_pct_mean~payroll_mean, data = data_final)
+summary(fit1)
+
+fit2 = lm(win_pct ~ diff_log+year+year*diff_log, data = datapay_long)
+summary(fit2)
+
+#correaltion
+cor(data_final$payroll_mean, data_final$win_pct_mean)
+```
+
+\ R-squared in the linear model for average win percentage and average log increases in payroll is relatively small, showing the linear regression model did not fit the data well and there was no strong linear relationship between log increases in payroll and win percentage. Same for the linear regression model when considering year and interaction between year and log increases in payroll.
+
+\ The correlation coefficient is -0.0946, indicating a low correlation.
+
 ## Comparison
 
 Which set of factors are better explaining performance? Yearly payroll or yearly increase in payroll? What criterion is being used? 
 
-
+\ I think yearly increase in payroll can better explaining performance, because the baseline payroll for each team is different. For instance, there is one team got relatively low payroll in the previous year, and the payroll increased greatly for this team in the next year. The overall yearly payroll for this team is still not as high as another team who got high payroll in the previous year though less increment in the next year. The relative increase is better to analyze the performance of one team.
 
 
 
