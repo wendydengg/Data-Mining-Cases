@@ -95,11 +95,51 @@ The raw data is stored as `Survey_results_final.csv` on Canvas.
 
 ## Data preparation
 
-1. We need to clean and select only the variables of interest. 
+1.  We need to clean and select only the variables of interest.
 
 Select only the variables Age, Gender, Education Level, Household Income in 2013, Sirius Listener?, Wharton Listener? and Time used to finish the survey.
 
+```{r, eval = F}
+survey_results <- read.csv("data/Survey_results_final.csv")
+```
+
 Change the variable names to be "age", "gender", "education", "income", "sirius", "wharton", "worktime".
+
+```{r, cleaning}
+results <-
+survey_results %>% 
+  # select only the variables Age, Gender, Education Level, Household Income in 2013, Sirius Listener?, Wharton Listener? and Time used to finish the survey
+  select(Answer.Age, Answer.Gender, Answer.Education, Answer.HouseHoldIncome, Answer.Sirius.Radio, Answer.Wharton.Radio, WorkTimeInSeconds) %>% 
+  # change the variable names to be "age", "gender", "education", "income", "sirius", "wharton", "worktime"
+  rename(age = Answer.Age, gender = Answer.Gender, education = Answer.Education, income = Answer.HouseHoldIncome, sirius = Answer.Sirius.Radio, wharton = Answer.Wharton.Radio, worktime = WorkTimeInSeconds) %>% 
+  # omit any row with NA because they will introduce noise into our data
+  na.omit()
+
+names(results)
+str(results)
+
+# get datatype of each column so we can convert them back to original datatype later on
+print(class(results$age))
+print(class(results$gender))
+print(class(results$education))
+print(class(results$income))
+print(class(results$sirius))
+print(class(results$wharton))
+print(class(results$worktime))
+```
+
+```{r, factoring}
+# we want to see what kinds of results are available for each variable
+results$age <- as.factor(results$age)
+results$gender <- as.factor(results$gender)
+results$education <- as.factor(results$education)
+results$income <- as.factor(results$income)
+results$sirius <- as.factor(results$sirius)
+results$wharton <- as.factor(results$wharton)
+results$worktime <- as.factor(results$worktime)
+
+summary(results)
+```
 
 2. Handle missing/wrongly filled values of the selected variables
 
@@ -107,17 +147,100 @@ As in real world data with user input, the data is incomplete, with missing valu
 
 Tip: Reflect on the reasons for which data could be wrong or missing. How would you address each case? For this homework, if you are trying to predict missing values with regression, you are definitely overthinking. Keep it simple.
 
+**We should remove rows with empty entries due to possible nonresponse bias from incomplete data, but we will take a look at those rows first and decide how trustworthy they are. As we can see, most rows with only one or two entries missing seem to be credible, but others with multiple entries missing seem like the person did not put effort into answering the survey. Since our sample size is sufficiently large compared to the 17 rows with incomplete data, we can omit these rows from our analysis. Moreover, we should removes rows with incorrect entries, and we can display those using summary() on each of the factors. Examples of incorrect data in this case include "select one" under education, and those who selected "Yes" to wharton but "No" to sirius because that is not possible when the wharton radio is one of the channels of sirius.**
+
+```{r, remove incomplete and incorrect data}
+results %>%
+  # view rows with incomplete data
+  filter(age == "" | gender == "" | education == "" | income == "" | sirius == "" | wharton == "" | worktime == "")
+
+results <- results %>%
+  # keep only the rows that are not empty
+  filter(age != "", gender != "", education != "", income != "", sirius != "", wharton != "", worktime != "") %>% 
+  
+  # remove rows with incorrect data entry
+  filter(education != "select one") %>% # remove "select one" under education
+  filter(!(wharton == "Yes" & sirius == "No")) %>% # remove inconsistent answers
+  filter(age != "female") %>% # remove incorrect entry
+  filter(age != "223") %>% # remove incorrect entry
+  filter(age != "4") %>% # remove incorrect entry
+  mutate(age = recode(age, "Eighteen (18)" = "18")) %>% # change "Eighteen (18)" to "18" under age
+  mutate(age = recode(age, "27`" = "27")) # change "Eighteen (18)" to "18" under age
+
+results <- droplevels(results) # drop levels in the factors after removing data
+summary(results)
+
+summary(results$age) # to see the (Other) levels under age and change the incorrect data entries accordingly
+```
+
 3. Brief summary 
 
 Write a brief report to summarize all the variables collected. Include both summary statistics (including sample size) and graphical displays such as histograms or bar charts where appropriate. Comment on what you have found from this sample. (For example - it's very interesting to think about why would one work for a job that pays only 10cents/each survey? Who are those survey workers? The answer may be interesting even if it may not directly relate to our goal.)
+
+**After cleaning the data, we have 1725 individuals in our sample. There are 729 female and 996 male (ratio of 0.42 : 0.58), and age ranges from 18 to 76. As seen from the histograms of age, education, and income: the distribution of age is right-skewed with a mean of 30.3 and a median of 28, 88.9% of the sample graduated from college with a Bachelor's, Associate's, or Graduate degree, and income distribution tells us that people who earn above $150,000 participated the least.**
+
+```{r summary statistics and graphs}
+# convert character to integer for datatype of age and worktime for calculation
+results$age = as.integer(as.character(results$age)) 
+results$worktime <- as.integer(as.character(results$worktime)) 
+
+skimr::skim(results)
+summary(results)
+
+# distribution of age, education, and income in our sample -- histograms
+age <- ggplot(results) + 
+  geom_histogram(aes(x = age), bins = 7, fill = "darkblue") +
+  labs( title = "Histogram of Age", x = "Age" , y = "Frequency")
+
+education <- ggplot(results) + 
+  geom_histogram(aes(x = education), stat="count", fill = "blue") +
+  labs( title = "Histogram of Education", x = "Education" , y = "Frequency") +
+  theme(axis.text.x = element_text(angle = -60)) 
+
+college_prop = (611+745+177)/1725
+
+income <- ggplot(results) + 
+  geom_histogram(aes(x = income), stat="count", fill = "lightblue") +
+  labs( title = "Histogram of Income", x = "Income" , y = "Frequency") +
+  theme(axis.text.x = element_text(angle = -60)) 
+
+grid.arrange(age, education, income, ncol = 3) 
+
+# scatterplot on sirius and wharton
+sirius <- results %>%
+  ggplot(aes(x = sirius, y = age)) + 
+  # geometric options with aes mapping: 
+  # color, size, alpha as a function of a variable 
+  geom_point(aes(color = education), size = 3) + 
+  labs(title = "Age vs. Listens to Sirius or no", 
+       x = "Listens to Sirius?", 
+       y = "Age") +
+  theme_bw() +
+  theme(legend.position = c(0.5, 0.5))
+
+wharton <- results %>%
+  ggplot(aes(x = wharton, y = age)) + 
+  # geometric options with aes mapping: 
+  # color, size, alpha as a function of a variable 
+  geom_point(aes(color = education), size = 3) + 
+  labs(title = "Age vs. Listens to Wharton or no", 
+       x = "Listens to Wharton?", 
+       y = "Age") +
+  theme_bw() +
+  theme(legend.position = c(0.5, 0.5))
+
+grid.arrange(sirius, wharton, ncol = 2) 
+```
 
 ## Sample properties
 
 The population from which the sample is drawn determines where the results of our analysis can be applied or generalized. We include some basic demographic information for the purpose of identifying sample bias, if any exists. Combine our data and the general population distribution in age, gender and income to try to characterize our sample on hand.
 
 1. Does this sample appear to be a random sample from the general population of the USA?
+**Since our study was conducted in 2014, according to US Census Bureau, the median age in US in 2014 is 37.9, which is around 10 years older than the median age in our sample. According to "Population Distribution by Age" from KFF, the third quartile in the US is within the range of age 55-64, while the third quartile in our sample is age 34. Overall, most of the people's age in our sample are concentrated within a smaller, younger age range than the general US population.**
 
 2. Does this sample appear to be a random sample from the MTURK population?
+**According to an article published in 2016 by Pew Research Center, the ratio of female to male Turkers is 0.49 : 0.51, which is very close to the ratio in our sample. As for income, 68% of Turkers earn within the range of $10k to $75k, which is also pretty representative of our sample ((358+420+371)/1725 = 67% earn within the range of $15k to $75k in our sample). As for age, 88% of Turkers are within the age range of 18-49. Since the third quartile in our sample is age 34, it is reasonable to say that around 88% of Turkers in our sample also falls within that age range. Moreover, 87% of Turkers have college degree, which is about the same as the college education proportion in our sample as well. In short, this sample does appear to be a random sample from the MTURK population given that a lot of the statistics are very similar.**
 
 Note: You can not provide evidence by simply looking at our data here. For example, you need to find distribution of education in our age group in US to see if the two groups match in distribution. You may need to gather some background information about the MTURK population to have a slight sense if this particular sample seem to a random sample from there... Please do not spend too much time gathering evidence. 
 
@@ -132,6 +255,24 @@ To be specific, you should include:
 3. Findings
 4. Limitations of the study. 
 
+```{r estimate Wharton audience size}
+#One approach is to estimate the proportion of the Wharton listeners to that of the Sirius listeners, $p$, so that we will come up with an audience size estimate of approximately 51.6 million times $p$.
+
+wharton_prop <-
+results %>%
+  filter(wharton == "Yes") %>%
+  nrow() 
+
+sirius_prop <-
+results %>%
+  filter(sirius == "Yes") %>%
+  nrow()
+
+p <- wharton_prop/sirius_prop
+audience_size = 51600000 * p
+```
+
+**The goal of the study is to estimate Wharton audience size by calculating the proportion of Wharton listeners to Sirius listeners, p, multiplied by 51.6 million, and it is estimated to be 2.58 million. The initial data size of 1764 people were collected through MTurk, but it was reduced down to 1725 after cleaning incomplete and incorrect data entries from surveys. Summary of the participants' demographic information shows that people who took the survey are indeed representative of the MTurk population, but they were not representative of the US population since people who take MTurk surveys are generally younger and more educated than the US population. Thus, we cannot extrapolate the results of the data to the general US population, but we can say that among the MTurk population, those who listen to Wharton radio is about 0.05% (p) of the population.**
 
 ## New task
 
