@@ -256,6 +256,25 @@ To be specific, you should include:
 3.  Findings
 4.  Limitations of the study.
 
+```{r estimate Wharton audience size}
+#One approach is to estimate the proportion of the Wharton listeners to that of the Sirius listeners, $p$, so that we will come up with an audience size estimate of approximately 51.6 million times $p$.
+
+wharton_prop <-
+results %>%
+  filter(wharton == "Yes") %>%
+  nrow() 
+
+sirius_prop <-
+results %>%
+  filter(sirius == "Yes") %>%
+  nrow()
+
+p <- wharton_prop/sirius_prop
+audience_size = 51600000 * p
+```
+
+**The goal of the study is to estimate Wharton audience size by calculating the proportion of Wharton listeners to Sirius listeners, p, multiplied by 51.6 million, and it is estimated to be 2.58 million. The initial data size of 1764 people were collected through MTurk, but it was reduced down to 1725 after cleaning incomplete and incorrect data entries from surveys. Summary of the participants' demographic information shows that people who took the survey are indeed representative of the MTurk population, but they were not representative of the US population since people who take MTurk surveys are generally younger and more educated than the US population. Thus, we cannot extrapolate the results of the data to the general US population, but we can say that among the MTurk population, those who listen to Wharton radio is about 0.05% (p) of the population.**
+
 ## New task
 
 Now suppose you are asked to design a study to estimate the audience size of Wharton Business Radio Show as of today: You are given a budget of \$1000. You need to present your findings in two months.
