@@ -26,11 +26,16 @@ urlcolor: blue
 
 
 ```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = FALSE, results = "hide", fig.width=8, fig.height=4)
+knitr::opts_chunk$set(echo = TRUE, fig.width=8, fig.height=4)
 options(scipen = 0, digits = 3)  # controls base R output
-# check if you have ISLR package, if not, install it
-if(!require('pacman')) {install.packages('pacman')}
-pacman::p_load(ISLR, readxl, tidyverse, magrittr, dplyr, ggplot2, pander)
+if(!require('pacman')) {
+  install.packages('pacman')
+}
+pacman::p_load(ggplot2, dplyr, tidyverse, gridExtra, ggrepel, plotly, skimr, tidytext) 
+# install a package if it does not exist already and put the package in the path (library)
+# dplyr, ggplot2,tidyr
+# install.packages('ggplot2')
+#library(ggplot2)
 ```
 
 
@@ -177,7 +182,7 @@ summary(results$age) # to see the (Other) levels under age and change the incorr
 
 Write a brief report to summarize all the variables collected. Include both summary statistics (including sample size) and graphical displays such as histograms or bar charts where appropriate. Comment on what you have found from this sample. (For example - it's very interesting to think about why would one work for a job that pays only 10cents/each survey? Who are those survey workers? The answer may be interesting even if it may not directly relate to our goal.)
 
-**After cleaning the data, we have 1725 individuals in our sample. There are 729 female and 996 male (ratio of 0.42 : 0.58), and age ranges from 18 to 76. As seen from the histograms of age, education, and income: the distribution of age is right-skewed with a mean of 30.3 and a median of 28, 88.9% of the sample graduated from college with a Bachelor's, Associate's, or Graduate degree, and income distribution tells us that people who earn above $150,000 participated the least.**
+**After cleaning the data, we have 1725 individuals in our sample. There are 729 female and 996 male (ratio of 0.42 : 0.58), and age ranges from 18 to 76. As seen from the histograms of age, education, and income: the distribution of age is right-skewed with a mean of 30.3 and a median of 28, 88.9% of the sample graduated from college with a Bachelor's, Associate's, or Graduate degree, and income distribution tells us that people who earn above $150,000 participated the least. The scatterplot of age, education, and whether if one listens to either channel shows that one's age and education level does not affect their response to listening to the channel or not.**
 
 ```{r summary statistics and graphs}
 # convert character to integer for datatype of age and worktime for calculation
@@ -286,9 +291,9 @@ Please fill in the google form to list your platform where surveys will be launc
 
 A good proposal will give an accurate estimation with the least amount of money used. 
 
+**Our new study will involve the use of multiple websites, social media platforms, or even hand-delivered mails to reach a wider and more representative audience and reduce selection bias. Such methods include websites like MTurk or SurveyMonkey or social media for the younger, educated population; and other methods include surveys through partnership with mails or newspaper for the older population. According to an article by Fit Small Business, an ad measuring four columns wide by 10 inches high in a standard newspaper would cost $480, which is more than enough space for our study and also fits within our budget. To reach the younger population, we can use multiple platforms such as SurveyMonkey and Google Opinion Rewards along with Mturk.**
 
-
-
+**As for the type of data to collect, we will use the same variables in the original survey with the addition of region and career fields to determine how representative of the US population will our sample be. Assuming we will have n participants after collecting and cleaning the data, we want to find the audience size X of Wharton. We can think of X as a random variable denoting the audience size of Wharton, and it follows a binomial distribution with probability of success p that the participants listens to Wharton. Then, p can be calculated using the original method, which is the proportion of Wharton listeners to that of Sirius listeners. We can now find the estimated audience size of Wharton, which is expectation of X from the population size of the US.**
 
 # Case study 2: Women in Science
 
