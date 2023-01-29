@@ -1,15 +1,11 @@
 ---
 title: " Modern Data Mining, HW 1"
 author:
-- Group Member 1: Wendy Deng
-- Group Member 2: Ruolan Li
-- Group Member 3: Kira Nightingale
+- Wendy Deng
+- Ruolan Li
+- Kira Nightingale
 date: 'Due: 11:59PM,  Jan. 29th, 2023'
 output:
-  pdf_document:
-    number_sections: yes
-    toc: yes
-    toc_depth: '4'
   html_document:
     code_folding: show
     highlight: haddock
@@ -18,6 +14,10 @@ output:
     toc: yes
     toc_depth: 4
     toc_float: yes
+  pdf_document:
+    number_sections: yes
+    toc: yes
+    toc_depth: '4'
   word_document:
     toc: yes
     toc_depth: '4'
@@ -26,16 +26,12 @@ urlcolor: blue
 
 
 ```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE, fig.width=8, fig.height=4)
+knitr::opts_chunk$set(echo = TRUE, fig.width=8, fig.height=4, warning = FALSE)
 options(scipen = 0, digits = 3)  # controls base R output
 if(!require('pacman')) {
   install.packages('pacman')
 }
-pacman::p_load(ggplot2, dplyr, tidyverse, gridExtra, ggrepel, plotly, skimr, tidytext) 
-# install a package if it does not exist already and put the package in the path (library)
-# dplyr, ggplot2,tidyr
-# install.packages('ggplot2')
-#library(ggplot2)
+pacman::p_load(ISLR, readxl, tidyverse, magrittr, dplyr, ggplot2, gridExtra, ggrepel, plotly, skimr, tidytext, pander, ggpubr) 
 ```
 
 
@@ -104,15 +100,14 @@ The raw data is stored as `Survey_results_final.csv` on Canvas.
 
 Select only the variables Age, Gender, Education Level, Household Income in 2013, Sirius Listener?, Wharton Listener? and Time used to finish the survey.
 
-```{r, eval = F}
+```{r}
 survey_results <- read.csv("data/Survey_results_final.csv")
 ```
 
 Change the variable names to be "age", "gender", "education", "income", "sirius", "wharton", "worktime".
 
 ```{r, cleaning}
-results <-
-survey_results %>% 
+results <- survey_results %>% 
   # select only the variables Age, Gender, Education Level, Household Income in 2013, Sirius Listener?, Wharton Listener? and Time used to finish the survey
   select(Answer.Age, Answer.Gender, Answer.Education, Answer.HouseHoldIncome, Answer.Sirius.Radio, Answer.Wharton.Radio, WorkTimeInSeconds) %>% 
   # change the variable names to be "age", "gender", "education", "income", "sirius", "wharton", "worktime"
@@ -152,7 +147,7 @@ As in real world data with user input, the data is incomplete, with missing valu
 
 Tip: Reflect on the reasons for which data could be wrong or missing. How would you address each case? For this homework, if you are trying to predict missing values with regression, you are definitely overthinking. Keep it simple.
 
-**We should remove rows with empty entries due to possible nonresponse bias from incomplete data, but we will take a look at those rows first and decide how trustworthy they are. As we can see, most rows with only one or two entries missing seem to be credible, but others with multiple entries missing seem like the person did not put effort into answering the survey. Since our sample size is sufficiently large compared to the 17 rows with incomplete data, we can omit these rows from our analysis. Moreover, we should removes rows with incorrect entries, and we can display those using summary() on each of the factors. Examples of incorrect data in this case include "select one" under education, and those who selected "Yes" to wharton but "No" to sirius because that is not possible when the wharton radio is one of the channels of sirius.**
+**We should remove rows with empty entries due to possible nonresponse bias from incomplete data, but we will take a look at those rows first and decide how trustworthy they are. As we can see, most rows with only one or two answers missing seem to be credible, but others with multiple answers missing seem like the person did not put effort into answering the survey. Since our sample size is sufficiently large compared to the 17 rows with incomplete data, we can omit these rows from our analysis. Moreover, we should removes rows with incorrect/non-sensical entries, and we can display those using summary() on each of the factors. Examples of incorrect data in this case include "select one" under education, and those who selected "Yes" to Wharton but "No" to Sirius because that is not possible when the Wharton radio is one of the channels of Sirius.**
 
 ```{r, remove incomplete and incorrect data}
 results %>%
@@ -170,7 +165,7 @@ results <- results %>%
   filter(age != "223") %>% # remove incorrect entry
   filter(age != "4") %>% # remove incorrect entry
   mutate(age = recode(age, "Eighteen (18)" = "18")) %>% # change "Eighteen (18)" to "18" under age
-  mutate(age = recode(age, "27`" = "27")) # change "Eighteen (18)" to "18" under age
+  mutate(age = recode(age, "27`" = "27")) # change "27`" to "27" under age
 
 results <- droplevels(results) # drop levels in the factors after removing data
 summary(results)
@@ -182,7 +177,7 @@ summary(results$age) # to see the (Other) levels under age and change the incorr
 
 Write a brief report to summarize all the variables collected. Include both summary statistics (including sample size) and graphical displays such as histograms or bar charts where appropriate. Comment on what you have found from this sample. (For example - it's very interesting to think about why would one work for a job that pays only 10cents/each survey? Who are those survey workers? The answer may be interesting even if it may not directly relate to our goal.)
 
-**After cleaning the data, we have 1725 individuals in our sample. There are 729 female and 996 male (ratio of 0.42 : 0.58), and age ranges from 18 to 76. As seen from the histograms of age, education, and income: the distribution of age is right-skewed with a mean of 30.3 and a median of 28, 88.9% of the sample graduated from college with a Bachelor's, Associate's, or Graduate degree, and income distribution tells us that people who earn above $150,000 participated the least. The scatterplot of age, education, and whether if one listens to either channel shows that one's age and education level does not affect their response to listening to the channel or not.**
+**After cleaning the data, we have 1725 individuals in our sample. There are 729 female and 996 male (ratio of 0.42 : 0.58), and age ranges from 18 to 76. As seen from the histograms of age, education, and income: the distribution of age is right-skewed with a mean of 30.3 and a median of 28, 88.9% of the sample graduated from college with a Bachelor's, Associate's, or Graduate degree, and income distribution tells us that people who earn above $150,000 participated the least - this makes intuitive sense as the survey paid only 10 cents and it is unlikely that someone making a high income would be motivated to complete it. The scatterplot of age, education, and whether if one listens to either channel shows that one's age and education level do not affect their response to listening to the channel or not.**
 
 ```{r summary statistics and graphs}
 # convert character to integer for datatype of age and worktime for calculation
@@ -195,18 +190,22 @@ summary(results)
 # distribution of age, education, and income in our sample -- histograms
 age <- ggplot(results) + 
   geom_histogram(aes(x = age), bins = 7, fill = "darkblue") +
-  labs( title = "Histogram of Age", x = "Age" , y = "Frequency")
+  labs( title = "Age of Respondents", x = "Age" , y = "Frequency")
 
-education <- ggplot(results) + 
+education <- results %>%
+      mutate(education = fct_relevel(education, "Less than 12 years; no high school diploma", "High school graduate (or equivalent)", "Some college, no diploma; or Associate’s degree", "Bachelor’s degree or other 4-year degree", "Graduate or professional degree", "Other")) %>% 
+  ggplot() + 
   geom_histogram(aes(x = education), stat="count", fill = "blue") +
-  labs( title = "Histogram of Education", x = "Education" , y = "Frequency") +
+  labs(title = "Education Level of Respondents", x = "Education" , y = "Frequency") +
   theme(axis.text.x = element_text(angle = -60)) 
 
 college_prop = (611+745+177)/1725
 
-income <- ggplot(results) + 
+income <- results %>%
+  mutate(income = fct_relevel(income, "Less than $15,000", "$15,000 - $30,000", "$30,000 - $50,000", "$50,000 - $75,000", "$75,000 - $150,000", "Above $150,000")) %>%
+  ggplot() + 
   geom_histogram(aes(x = income), stat="count", fill = "lightblue") +
-  labs( title = "Histogram of Income", x = "Income" , y = "Frequency") +
+  labs( title = "Income Level of Respondents", x = "Income" , y = "Frequency") +
   theme(axis.text.x = element_text(angle = -60)) 
 
 grid.arrange(age, education, income, ncol = 3) 
@@ -242,7 +241,7 @@ grid.arrange(sirius, wharton, ncol = 2)
 The population from which the sample is drawn determines where the results of our analysis can be applied or generalized. We include some basic demographic information for the purpose of identifying sample bias, if any exists. Combine our data and the general population distribution in age, gender and income to try to characterize our sample on hand.
 
 1. Does this sample appear to be a random sample from the general population of the USA?
-**Since our study was conducted in 2014, according to US Census Bureau, the median age in US in 2014 is 37.9, which is around 10 years older than the median age in our sample. According to "Population Distribution by Age" from KFF, the third quartile in the US is within the range of age 55-64, while the third quartile in our sample is age 34. Overall, most of the people's age in our sample are concentrated within a smaller, younger age range than the general US population.**
+**Since our study was conducted in 2014, according to US Census Bureau, the median age in US in 2014 was 37.9, which is around 10 years older than the median age in our sample. According to "Population Distribution by Age" from KFF, the third quartile in the US is within the range of age 55-64, while the third quartile in our sample is age 34. Overall, most of the people's age in our sample are concentrated within a smaller, younger age range than the general US population.**
 
 2. Does this sample appear to be a random sample from the MTURK population?
 **According to an article published in 2016 by Pew Research Center, the ratio of female to male Turkers is 0.49 : 0.51, which is very close to the ratio in our sample. As for income, 68% of Turkers earn within the range of $10k to $75k, which is also pretty representative of our sample ((358+420+371)/1725 = 67% earn within the range of $15k to $75k in our sample). As for age, 88% of Turkers are within the age range of 18-49. Since the third quartile in our sample is age 34, it is reasonable to say that around 88% of Turkers in our sample also falls within that age range. Moreover, 87% of Turkers have college degree, which is about the same as the college education proportion in our sample as well. In short, this sample does appear to be a random sample from the MTURK population given that a lot of the statistics are very similar.**
@@ -274,10 +273,11 @@ results %>%
   nrow()
 
 p <- wharton_prop/sirius_prop
+percent <- p*100
 audience_size = 51600000 * p
 ```
 
-**The goal of the study is to estimate Wharton audience size by calculating the proportion of Wharton listeners to Sirius listeners, p, multiplied by 51.6 million, and it is estimated to be 2.58 million. The initial data size of 1764 people were collected through MTurk, but it was reduced down to 1725 after cleaning incomplete and incorrect data entries from surveys. Summary of the participants' demographic information shows that people who took the survey are indeed representative of the MTurk population, but they were not representative of the US population since people who take MTurk surveys are generally younger and more educated than the US population. Thus, we cannot extrapolate the results of the data to the general US population, but we can say that among the MTurk population, those who listen to Wharton radio is about 0.05% (p) of the population.**
+**The goal of the study is to estimate the Wharton Radio audience size by calculating the proportion of Wharton listeners to Sirius listeners times the total Sirius listener base. Data was collected via a survey on Amazon Mechanical Turk and ran for a length of 6 days. A total of 1764 responses were collected, which was reduced to 1725 after removal of incomplete/inaccurate responses. Given the total number of Sirius users (51.6 million), and the proportion of Sirius listeners to Wharton listeners in our sample (5.01%), it is estimated that there are 2.58 million listeners of Wharton Radio. A summary of the participants' demographic information shows that people who took the survey are likely representative of the MTurk population, but they are not representative of the US population since people who take MTurk surveys are generally younger and more educated than the US population. Thus, the main limitation of this study is that we cannot extrapolate the results of the data to the general US population, but we can say that among the MTurk population, those who listen to Wharton radio is about 5.01% (p) of the population.**
 
 ## New task
 
@@ -572,11 +572,8 @@ a). To describe the increment of payroll in each year there are several possible
 Explain why the log difference is more appropriate in this setup.
 
 ```{r data input, include=FALSE}
-library(dplyr)
-library(ggplot2)
-library(ggpubr)
-datapay_wide <- read.csv("/Users/ruolanli/Downloads/MLPayData_Total.csv")
-datapay_long <- read.csv("/Users/ruolanli/Downloads/baseball.csv")
+datapay_wide <- read.csv("data/MLPayData_Total.csv")
+datapay_long <- read.csv("data/baseball.csv")
 ```
 
 ```{r compare difference and log difference, echo=FALSE}
@@ -594,9 +591,9 @@ ggarrange(p1,p2)
 
 ```
 
-\ 1. As the density plot shown, the variable payroll is right skewed. After the log transformation, the density plot is much less skewed. Therefore, it is more appropriate to use log difference.
+**1. As the density plot shown, the variable payroll is right skewed. After the log transformation, the density plot is much less skewed. Therefore, it is more appropriate to use log difference.**
 
-\ 2. Because of the mathematical properties of logarithm: $log(a)-log(b)=log(\frac{a}{b})$, the logarithm transformation converts absolute difference into relative difference.
+**2. Because of the mathematical properties of logarithm: $log(a)-log(b)=log(\frac{a}{b})$, the logarithm transformation converts absolute difference into relative difference.**
 
 b). Create a new variable `diff_log=log(payroll_2013) - log(payroll_2012)`. Hint: use `dplyr::lag()` function.
 
@@ -631,7 +628,7 @@ payroll <- datapay_long %>%
 head(payroll)
 ```
 
-\ Los Angeles Dodgers, Washington Nationals, San Diego Padres, Texas Rangers and San Francisco Giants had ighest increase in their payroll between years 2010 and 2014.
+**Los Angeles Dodgers, Washington Nationals, San Diego Padres, Texas Rangers and San Francisco Giants had highest increase in their payroll between years 2010 and 2014.**
 
 b). Between 2010 and 2014, inclusive, which team(s) "improved" the most? That is, had the biggest percentage gain in wins?
 
@@ -645,7 +642,7 @@ win <- datapay_wide %>%
 head(win)
 ```
 
-\ Pittsburgh Pirates had the biggest percentage gain in wins between 2010 and 2014.
+**Pittsburgh Pirates had the biggest percentage gain in wins between 2010 and 2014.**
 
 ## Do log increases in payroll imply better performance? 
 
@@ -664,8 +661,8 @@ data_final %>%
   geom_point(color = "blue", size = 3) +
   geom_text(aes(label = team), size = 3) +
   labs(title = "Win Percentage vs. Log Increase in Payroll",
-       x = "Log_increase_in_payroll",
-       y = "Win_pct")
+       x = "Log Increase in Payroll",
+       y = "Proportion of Wins")
 ```
 
 
@@ -676,14 +673,14 @@ data_final %>%
   geom_point(size = 3)+
   geom_smooth(method = "lm", formula = y~x, color = "blue")+
   labs(title = "Win Percentage vs. Log Increase in Payroll",
-       x = "Log_increase_in_payroll",
-       y = "Win_pct")+
+       x = "Log Increase in Payroll",
+       y = "Proportion of Wins")+
   theme_bw()
 ```
 
-\ No, there is no strong evidence to support the hypothesis that higher increases in payroll on the log scale lead to increased performance. 
+**No, there is no strong evidence to support the hypothesis that higher increases in payroll on the log scale lead to increased performance.**
 
-\ In the scatter plot, the data points do not cluster tightly. 
+**In the scatter plot, the data points do not cluster tightly.**
 
 ```{r, echo=FALSE}
 datapay_long %>%
@@ -695,7 +692,7 @@ datapay_long %>%
   theme(legend.position = 0)
 ```
 
-\ The plot indicates that log increases in payroll and performance is not consistently positively related in some years.
+**The plot indicates that log increases in payroll and performance is not consistently positively related in some years.**
 
 ```{r, echo=FALSE}
 #linear relationship
@@ -709,15 +706,15 @@ summary(fit2)
 cor(data_final$payroll_mean, data_final$win_pct_mean)
 ```
 
-\ R-squared in the linear model for average win percentage and average log increases in payroll is relatively small, showing the linear regression model did not fit the data well and there was no strong linear relationship between log increases in payroll and win percentage. Same for the linear regression model when considering year and interaction between year and log increases in payroll.
+**R-squared in the linear model for average win percentage and average log increases in payroll is relatively small, showing the linear regression model did not fit the data well and there was no strong linear relationship between log increases in payroll and win percentage. Same for the linear regression model when considering year and interaction between year and log increases in payroll.**
 
-\ The correlation coefficient is -0.0946, indicating a low correlation.
+**The correlation coefficient is -0.0946, indicating a low correlation.**
 
 ## Comparison
 
 Which set of factors are better explaining performance? Yearly payroll or yearly increase in payroll? What criterion is being used? 
 
-\ I think yearly increase in payroll can better explaining performance, because the baseline payroll for each team is different. For instance, there is one team got relatively low payroll in the previous year, and the payroll increased greatly for this team in the next year. The overall yearly payroll for this team is still not as high as another team who got high payroll in the previous year though less increment in the next year. The relative increase is better to analyze the performance of one team.
+**I think yearly increase in payroll can better explaining performance, because the baseline payroll for each team is different. For instance, there is one team got relatively low payroll in the previous year, and the payroll increased greatly for this team in the next year. The overall yearly payroll for this team is still not as high as another team who got high payroll in the previous year though less increment in the next year. The relative increase is better to analyze the performance of one team.**
 
 
 
