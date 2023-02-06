@@ -1,9 +1,9 @@
 ---
 title: "Modern Data Mining, HW 2"
 author:
-- Group Member 1
-- Group Member 2
-- Group Member 3
+- Group Member Wendy Deng
+- Group Member Ruolan Li
+- Group Member Kira Nightingale
 date: 'Due: 11:59 PM,  Sunday, 02/12'
 output:
   pdf_document:
@@ -268,6 +268,57 @@ Get familiar with this dataset first. Tip: you can use the command `?ISLR::Auto`
 
 ## EDA
 Explore the data, with particular focus on pairwise plots and summary statistics. Briefly summarize your findings and any peculiarities in the data.
+
+**The auto dataset contains 392 observations of nine variables describing 301 different car models with model years ranging from 1970-1982. The region of origin with the greatest number of unique car models is America in all years except for 1980, when the greatest number of unique models came from Japan (Figure 3.1). Across all years, American cars had a lower average miles per gallon (MPG) than both European and Japanese cars, although MPG generally increased over time for all origins (Figure 3.2). While there appears to be a fair amount of variation, heavier cars generally have a shorter time to acceleration from 0 to 60 miles per hour. Heavier cars also usually have a greater number of cylinders (Figure 3.3).**
+
+```{r, auto descriptives}
+#Load auto data and get summary statistics
+data("Auto")
+
+str(Auto)
+summary(Auto)
+colSums(is.na(Auto))
+n_distinct(Auto$name)
+
+#Origin should be treated as a factor: 1=American, 2=European, 3=Japanese. 
+Auto$origin <- factor(Auto$origin, levels = c("1", "2", "3"), labels = c("American", "European", "Japanese"))
+
+```
+
+
+```{r, auto descriptive graphs, warning=FALSE}
+#Look at number of vehicles by region over time
+number_time <- Auto %>%
+  group_by(origin, year) %>%
+  summarise(num=n_distinct(name)) %>%
+  ggplot(., aes(x=year, y=num, fill=origin)) +
+  geom_bar(stat="identity") +
+  labs(y="Number of unique models", x="Year", title="Figure 3.1:", subtitle="Number of unique car models over time by region of origin") +
+  theme_bw()
+number_time
+
+#Look at average MPH over time by origin
+Auto <- Auto %>%
+  group_by(origin, year) %>%
+  mutate(avg_mpg = mean(mpg))
+
+mpg_time <- ggplot(Auto, aes(x=year, y=avg_mpg, color=origin)) + 
+  geom_point() + geom_line() +
+  labs(y="Average MPG", x="Year", title="Figure 3.2:", subtitle="Average MPG over time by region of origin") +
+  scale_x_continuous(n.breaks = 13) + 
+  theme_bw()
+mpg_time
+
+#Look at weight versus acceleration
+weight_accel <- ggplot(Auto, aes(x=weight, y=acceleration, color=cylinders)) +
+  geom_point() + 
+  geom_smooth() +
+  labs(y="Time to accelerate from 0 to 60 mph (seconds)", x="Vehicle weight (pounds)", title="Figure 3.3:", subtitle="Relationship between weight of car and acceleration, by number of cylinders") +
+  theme_bw()
+weight_accel
+
+
+```
 
 
 ## What effect does `time` have on `MPG`?
