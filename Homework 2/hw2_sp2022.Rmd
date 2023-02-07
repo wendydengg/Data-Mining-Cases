@@ -324,20 +324,53 @@ weight_accel
 ## What effect does `time` have on `MPG`?
 
 a) Start with a simple regression of `mpg` vs. `year` and report R's `summary` output. Is `year` a significant variable at the .05 level? State what effect `year` has on `mpg`, if any, according to this model. 
+**Year is significantly related to MPG at the 0.05 level. Every 1-year increase in time is associated with an average MPG increase of 1.23 (p<0.001).**
+```{r, linear regression mpg year}
+regress_mgpyr <- glm(data=Auto, mpg ~ year, family=gaussian)
+summary(regress_mgpyr)
+```
+
 
 b) Add `horsepower` on top of the variable `year` to your linear model. Is `year` still a significant variable at the .05 level? Give a precise interpretation of the `year`'s effect found here. 
+**After controlling for horsepower, year is still significantly related to mpg at the 0.05 level. Holding horsepower constant, every 1-year increase in time is associated with an average 0.66 increase in mpg (p<0.001).**
+```{r, regression mgp year horsepower}
+regress_mpgyrhorse <- glm(data=Auto, mpg ~ year + horsepower, family=gaussian)
+summary(regress_mpgyrhorse)
+```
 
 c) The two 95% CI's for the coefficient of year differ among (i) and (ii). How would you explain the difference to a non-statistician?
 
 d) Create a model with interaction by fitting `lm(mpg ~ year * horsepower)`. Is the interaction effect significant at .05 level? Explain the year effect (if any). 
+**The interaction between year and horsepower is significant at the 0.05 level. When horsepower is 0, every 1-year increase in time is associated with an average 2.19 increase in mpg (p<0.001). This interpretation is nonsensical in this context, as a car could not have a horsepower of 0. In this case, it would be better to center the variables, which would allow us to interpret the effect of year when horsepower is equal to the sample average. The interaction coefficient tells us the difference in the effect of time (measured in years) for each unit increase in horsepower.**
+```{r, regression w/ interaction}
+regress_interaction <- glm(data=Auto, mpg ~ year * horsepower, family=gaussian)
+summary(regress_interaction)
+```
+
 
 ## Categorical predictors
 
 Remember that the same variable can play different roles! Take a quick look at the variable `cylinders`, and try to use this variable in the following analyses wisely. We all agree that a larger number of cylinders will lower mpg. However, we can interpret `cylinders` as either a continuous (numeric) variable or a categorical variable.
 
 a) Fit a model that treats `cylinders` as a continuous/numeric variable. Is `cylinders` significant at the 0.01 level? What effect does `cylinders` play in this model?
+**Treating cylinders as a continuous variable, it is significant at the 0.01 level. For each 1-cylinder increase in the number of cylinders, mpg decreases by 3.56 on average (p<0.001).**
+```{r, regression cylinder continuous}
+regression_cylinder_cont <- lm(data = Auto, mpg ~ cylinders)
+summary(regression_cylinder_cont)
+```
 
 b) Fit a model that treats `cylinders` as a categorical/factor. Is `cylinders` significant at the .01 level? What is the effect of `cylinders` in this model? Describe the `cylinders` effect over `mpg`. 
+**Treating the number of cylinders as categorical, we compare the effect of the number of cylinders on mpg as compared to our reference, which in this case is 3 cylinders. Our overall test of significance, the F-test, tells us that the number of cylinders is significantly related to mpg at the 0.01 level (p<0.001). Cars with 4 cylinders have on average 8.73 higher mpg than cars with 3 cylinders (p<0.001). At the p=0.01 level, there is no significant difference in mpg between cars with 3 cylinders compared to cars with 5, 6, or 8 cylinders.**
+```{r, regression cylinder categorical}
+#Creating a factor version of cylinders
+Auto$cylinders_fact <- as.factor(Auto$cylinders)
+
+#Running regression
+regression_cylinder_cat <- lm(data = Auto, mpg ~ cylinders_fact)
+summary(regression_cylinder_cat)
+
+```
+
 
 c) What are the fundamental differences between treating `cylinders` as a continuous and categorical variable in your models? 
 
