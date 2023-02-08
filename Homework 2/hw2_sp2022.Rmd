@@ -269,7 +269,7 @@ Get familiar with this dataset first. Tip: you can use the command `?ISLR::Auto`
 ## EDA
 Explore the data, with particular focus on pairwise plots and summary statistics. Briefly summarize your findings and any peculiarities in the data.
 
-**The auto dataset contains 392 observations of nine variables describing 301 different car models with model years ranging from 1970-1982. The region of origin with the greatest number of unique car models is America in all years except for 1980, when the greatest number of unique models came from Japan (Figure 3.1). Across all years, American cars had a lower average miles per gallon (MPG) than both European and Japanese cars, although MPG generally increased over time for all origins (Figure 3.2). While there appears to be a fair amount of variation, heavier cars generally have a shorter time to acceleration from 0 to 60 miles per hour. Heavier cars also usually have a greater number of cylinders (Figure 3.3).**
+**The auto dataset contains 392 observations of nine variables describing 301 different car models with model years ranging from 1970-1982. The region of origin with the greatest number of unique car models is America in all years except for 1980, when the greatest number of unique models came from Japan (Figure 3.1). Across all years, American cars had a lower average miles per gallon (MPG) than both European and Japanese cars, although MPG generally increased over time for all origins (Figure 3.2). While there appears to be a fair amount of variation, heavier cars generally have a shorter time to acceleration from 0 to 60 miles per hour. Heavier cars also usually have a greater number of cylinders (Figure 3.3). Cars with higher horsepower tend to get lower miles per gallon (Figure 3.4).**
 
 ```{r, auto descriptives}
 #Load auto data and get summary statistics
@@ -317,6 +317,13 @@ weight_accel <- ggplot(Auto, aes(x=weight, y=acceleration, color=cylinders)) +
   theme_bw()
 weight_accel
 
+#Look at weight versus acceleration
+mpg_horse <- ggplot(Auto, aes(x=horsepower, y=mpg)) +
+  geom_point() + 
+  geom_smooth() +
+  labs(y="Miles per gallon", x="Horsepower", title="Figure 3.4:", subtitle="Relationship between horsepower and miles per gallon") +
+  theme_bw()
+mpg_horse
 
 ```
 
@@ -328,6 +335,7 @@ a) Start with a simple regression of `mpg` vs. `year` and report R's `summary` o
 ```{r, linear regression mpg year}
 regress_mgpyr <- glm(data=Auto, mpg ~ year, family=gaussian)
 summary(regress_mgpyr)
+confint(regress_mgpyr)
 ```
 
 
@@ -336,9 +344,11 @@ b) Add `horsepower` on top of the variable `year` to your linear model. Is `year
 ```{r, regression mgp year horsepower}
 regress_mpgyrhorse <- glm(data=Auto, mpg ~ year + horsepower, family=gaussian)
 summary(regress_mpgyrhorse)
+confint(regress_mpgyrhorse)
 ```
 
 c) The two 95% CI's for the coefficient of year differ among (i) and (ii). How would you explain the difference to a non-statistician?
+**FILL THIS IN**
 
 d) Create a model with interaction by fitting `lm(mpg ~ year * horsepower)`. Is the interaction effect significant at .05 level? Explain the year effect (if any). 
 **The interaction between year and horsepower is significant at the 0.05 level. When horsepower is 0, every 1-year increase in time is associated with an average 2.19 increase in mpg (p<0.001). This interpretation is nonsensical in this context, as a car could not have a horsepower of 0. In this case, it would be better to center the variables, which would allow us to interpret the effect of year when horsepower is equal to the sample average. The interaction coefficient tells us the difference in the effect of time (measured in years) for each unit increase in horsepower.**
@@ -380,8 +390,61 @@ d) Can you test the null hypothesis: fit0: `mpg` is linear in `cylinders` vs. fi
 ## Results
 
 Final modeling question: we want to explore the effects of each feature as best as possible. You may explore interactions, feature transformations, higher order terms, or other strategies within reason. The model(s) should be as parsimonious (simple) as possible unless the gain in accuracy is significant from your point of view.
+```{r, test models}
+#First, try a model with all variables includes as predictors. This model has a fairly high R2 but isn't parsimonious, and has non-significant terms.
+model1 <- lm(data=Auto, mpg ~ cylinders + displacement + horsepower + weight + acceleration + year + origin)
+summary(model1)
+
+#Data exploration showed that cars from different regions have different MPG, and that MPG increased over time. The rates of MPG change over time look slightly different by region - trying an interaction term.
+model2 <- lm(data=Auto, mpg ~ cylinders + displacement + horsepower + weight + acceleration + year*origin)
+summary(model2)
+
+#We also saw in data exploration that as weight increases, the number of cylinders increases. Weight is significantly related to MPG - maybe there is an interaction effect
+model3 <- lm(data=Auto, mpg ~ cylinders*weight + displacement + horsepower + acceleration + year*origin)
+summary(model3)
+
+#Remove remaining non-significant variables
+model4 <- lm(data=Auto, mpg ~ cylinders*weight + displacement + horsepower + year*origin)
+summary(model4)
+
+#Displacement and horsepower are significant, but have a small absolute effect estimate on MPG - try removing them and comparing this with the previous model.
+model5 <- lm(data=Auto, mpg ~ cylinders*weight + year*origin)
+summary(model5)
+anova(model5, model4)
+#While the results show that the model including displacement and horsepower is "better", removing those because it only increased the R2 by 0.005 which doesn't seem worth the two extra variables.
+
+```
   
 a) Describe the final model. Include diagnostic plots with particular focus on the model residuals and diagnoses.
+
+```{r, final cars model}
+final_model <- lm(data=Auto, mpg ~ weight*cylinders + year*origin)
+summary(final_model)
+
+#Model diagnostics
+#Linearity and homoscedasticity
+plot(final_model$fitted, final_model$residuals, 
+     pch  = 16,
+     main = "Residual plot")
+abline(h=0, lwd=4, col="red")
+#Linearity assumption is satisfied. Slight funnel-shaped pattern opening to the right but probably OK to assume this is homoscedastic.
+#Normality
+qqnorm(final_model$residuals)
+qqline(final_model$residuals, lwd=4, col="blue")
+#Normality definitely not met. Will try transforming the outcome (mpg) - although this does complicate interpretation.
+
+Auto <- Auto %>% mutate(mpg_log = log(mpg), mpg_sqrt = sqrt(mpg))
+final_model_2 <- lm(data=Auto, mpg_log ~ weight*cylinders + year*origin)
+summary(final_model_2)
+qqnorm(final_model_2$residuals)
+qqline(final_model_2$residuals, lwd=4, col="blue")
+
+final_model_3 <- lm(data=Auto, mpg_sqrt ~ weight*cylinders + year*origin)
+summary(final_model_3)
+qqnorm(final_model_3$residuals)
+qqline(final_model_3$residuals, lwd=4, col="blue")
+
+```
 
 b) Summarize the effects found.
 
