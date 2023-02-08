@@ -136,15 +136,25 @@ The following 10 questions are answered as 1: strongly agree, 2: agree, 3: disag
 
 Load the data. Do a quick EDA to get familiar with the data set. Pay attention to the unit of each variable. Are there any missing values? 
 
-```{r quick skim of the data}
-# temp <- read.csv('data/NLSY79.csv', header = T, stringsAsFactors = F)
-# # missing values? real variables vs. factors? are varable values reasonable?
-# str(temp)
-# summary(temp)
-# levels(as.factor(temp$Job05))
-# table(as.factor(temp$Job05))
-```
+```{r EDA}
+self_esteem <- read.csv("/Users/ruolanli/Downloads/NLSY79.csv")
 
+#check dimension
+dim(self_esteem)
+
+#check variables
+names(self_esteem)
+
+#check data structure
+str(self_esteem)
+
+#check missing data
+sapply(self_esteem, function(x) sum(is.na(x)))
+sum(self_esteem$Income87 == 0)
+sum(self_esteem$Income05 == 0)
+sum(self_esteem$FamilyIncome78 == 0)
+```
+**There are 2431 people and 46 variables in the self-esteem data. Some values of income and family income are missing**
 
 ## Self esteem evaluation
 
@@ -152,35 +162,185 @@ Let concentrate on Esteem scores evaluated in 87.
 
 0. First do a quick summary over all the `Esteem` variables. Pay attention to missing values, any peculiar numbers etc. How do you fix problems discovered if there is any? Briefly describe what you have done for the data preparation. 
 
+```{r get Esteem scores evaluated in 87}
+library(dplyr)
+#select Esteem scores in 87
+data_esteem <- self_esteem %>%
+  dplyr::select(paste0("Esteem87_",c(1:10)))
+
+#data summary
+summary(data_esteem)
+sum(is.na(data_esteem))
+```
+- **There are no missing values or peculiar numbers in Esteem scores.**
+- **If there are missing values, we should first check the reason for missing data. If the values are missing at random, and the number of missing values is small, we can delete the observations directly. However, if the values are missing not at random, deleting observations can cause bias. We can also consider using imputation to generate values for missing values, for example, we can use the mean to replace the missing values.**
+- **If there are peculiar numbers, we should first check if they are data entry errors. If not, we can use data transformation to eliminate the outliers.**
+
 1. Reverse Esteem 1, 2, 4, 6, and 7 so that a higher score corresponds to higher self-esteem. (Hint: if we store the esteem data in `data.esteem`, then `data.esteem[,  c(1, 2, 4, 6, 7)]  <- 5 - data.esteem[,  c(1, 2, 4, 6, 7)]` to reverse the score.)
+```{r Reverse}
+data_esteem[, c(1, 2, 4, 6, 7)] <- 5 - data_esteem[, c(1, 2, 4, 6, 7)]
+head(data_esteem)
+```
+
 
 2. Write a brief summary with necessary plots about the 10 esteem measurements.
+```{r 10 esteem measurement}
+library(ggplot2)
+library(tidyverse)
+#bar plots
+data_esteem1 <- data_esteem %>%
+  mutate(across(everything(), as.character))
+
+x <- as.data.frame(t(data_esteem1))
+x <- tibble::rownames_to_column(x,"measurement")
+
+x %>% 
+  pivot_longer(cols = contains("V"),
+               names_to = "subject",
+               values_to = "score") %>%
+  ggplot(aes(x = score)) +
+  geom_bar()+
+  facet_wrap( ~ measurement) +
+  labs(title = "Figure 1.1:",
+       subtitle = "Histogram of 10 esteem measurements")
+```
+**Since we reverse the order in 1.2.1, higher score corresponds to higher self-esteem. We can see the scores are high in the measurements associated with positive attitude from the bar plots. For the measurements associated with negative attitude, the scores are also mainly 3 or 4, indicating most of individuals disagree with the negative measurements.**
 
 3. Do esteem scores all positively correlated? Report the pairwise correlation table and write a brief summary.
+```{r correlation}
+library(kableExtra)
+library(magrittr)
+cor_esteem <- cor(data_esteem)
+knitr::opts_chunk$set(echo = TRUE)
+knitr::kable(cor_esteem, format = "latex", booktabs = TRUE) %>%
+  kable_styling(latex_options = "scale_down") %>%
+  kable_styling(latex_options = "HOLD_position")
+  
+```
+**Esteem scores are all positively correlated after reversing the order in part 1.2.1. Esteem 1, 2, 4, 6, and 7 indicate positive attitude, therefore, they are more closely correlated.**
 
 4. PCA on 10 esteem measurements. (centered but no scaling)
 
     a) Report the PC1 and PC2 loadings. Are they unit vectors? Are they orthogonal? 
-  
+```{r PC1 and PC2 loadings}
+#PC1 and PC2 loadings
+pc <- prcomp(data_esteem, scale = F)
+pc12 <- pc$rotation[,1:2]
+knitr::kable(pc12) %>%
+  kable_styling(latex_options = "HOLD_position")
+
+#check the loadings are unit 1
+colSums((pc12)^2)
+
+#check orthogonality
+round(cor(pc12),2)
+
+```
+- **The PC1 and PC2 loadings are shown in the table.**
+- **The PC1 and PC2 loadings are unit vectors, but they are not orthogonal.**
+
     b) Are there good interpretations for PC1 and PC2? (If loadings are all negative, take the positive loadings for the ease of interpretation)
-  
+  **Interpretations for PC1: The values of ten loadings are approximately proportional to the sum of esteem scores. The absolute values are approximately around 0.3. Higher PC1 indicates higher self-esteem**
+**Interpretations for PC2: The values and signs of ten loadings can be interpreted as the difference between sum of esteem scores indicating strongly negative attitude and sum of esteem scores indicating slightly negative/positive attitude.**
+
     c) How is the PC1 score obtained for each subject? Write down the formula.
-    
+```{r pc1 score}
+#calculate by hand
+library(geometry)
+pc$rotation[,1] #PC1 loading
+scale(data_esteem,scale = F)[1,] #centered original score
+pc1_score = dot(pc$rotation[,1],scale(data_esteem,scale = F)[1,])
+pc1_score
+
+#compare result
+round(pc1_score,3) == round(pc$x[1,1],3) #PC1 score for first ind
+```
+**Take the first observation as an example, to get PC1 score:** $$PC1 = 0.235*centered\_Esteem87\_1+0.244*centered\_Esteem87\_1_...+0.376*centered\_Esteem87\_10$$
+
     d) Are PC1 scores and PC2 scores in the data uncorrelated? 
-    
+```{r PC1 scores and PC2 scores}
+round(cor(pc$x),2)[1:2,1:2]
+```
+**PC1 and PC2 scores are uncorrelated.**
+
     e) Plot PVE (Proportion of Variance Explained) and summarize the plot. 
-  
+```{r PVE}
+#plot PVE
+plot(summary(pc)$importance[2,],
+     xlab = "Number of PCs",
+     ylab = "PVE",
+     main = "Figure 1.2: PVE plot")
+```
+**The plot indicates 4 leading PCs should be enough. Among those PCs, first PC can explain most proportion of the variance.**
+
     f) Also plot CPVE (Cumulative Proportion of Variance Explained). What proportion of the variance in the data is explained by the first two principal components?
-  
+```{r CPVE}
+#plot CPVE
+plot(summary(pc)$importance[3,],
+     xlab = "Number of PCs",
+     ylab = "CPVE",
+     main = "Figure 1.3: CPVE plot")
+
+#summary
+summary(pc)
+```
+**First two principal components explained 59.3% variance in the original data.**
     g) PC’s provide us with a low dimensional view of the self-esteem scores. Use a biplot with the first two PC's to display the data.  Give an interpretation of PC1 and PC2 from the plot. (try `ggbiplot` if you could, much prettier!)
+    
+```{r install ggbiplot, include=FALSE}
+devtools::install_github("vqv/ggbiplot")
+```
+
+```{r biplot}
+library(ggbiplot)
+ggbiplot(pc, obs.scale = 1, var.scale = 1)+
+  geom_hline(yintercept = 0,color = "blue")+
+  geom_vline(xintercept = 0, color = "blue")+
+  labs(title = "Figure 1.4:", subtitle = "Biplot")+
+  theme_bw()
+```
+**Interpretation: All esteem measurements are positively associated with PC1. Esteem 8,9 and 10 are positively associated with PC2. **
 
 5. Apply k-means to cluster subjects on the original esteem scores
 
     a) Find a reasonable number of clusters using within sum of squared with elbow rules.
-    
+```{r number of clusters}
+library(factoextra)
+set.seed(83)
+fviz_nbclust(data_esteem, kmeans, method = "wss")+
+  labs(title = "Figure 1.5:", subtitle = "Optimal number of clusters")
+```
+**Two clusters are a reasonable number based on the elbow rules.**
+
     b) Can you summarize common features within each cluster?
-    
+```{r clusters}
+#k means
+esteem_kmeans <- kmeans(data_esteem, centers = 2)
+str(esteem_kmeans)
+```
+**We do not know any info from clustering results since it is unsupervised. We do not know the label of samples.**
+
     c) Can you visualize the clusters with somewhat clear boundaries? You may try different pairs of variables and different PC pairs of the esteem scores.
+```{r visualize the clusters}
+#get other variables
+esteem <- data_esteem %>%
+  mutate(cluster = as.factor(esteem_kmeans$cluster)) %>%
+  arrange(cluster)
+
+#try positive attitude esteem scores
+ggplot(data = esteem, aes(x = Esteem87_1, y = Esteem87_2, col = cluster))+
+  geom_point()+
+  ggtitle("Clustering over positive attitude esteem scores") #categorical variables
+
+#try pca
+data.frame(pc1 = pc$x[,1],
+           pc2 = pc$x[,2],
+           cluster = as.factor(esteem_kmeans$cluster)) %>%
+ggplot(aes(x = pc1, y = pc2, col = cluster))+
+  geom_point()+
+  labs(title = "Figure 1.6:", subtitle = "Clustering over PCs")
+```
+**Because esteem scores are categorical, clusters can not be visualized with clear boundaries. By using PCs, we can get clear boundaries of two groups.**
 
 
 6. We now try to find out what factors are related to self-esteem? PC1 of all the Esteem scores is a good variable to summarize one's esteem scores. We take PC1 as our response variable. 
@@ -188,20 +348,84 @@ Let concentrate on Esteem scores evaluated in 87.
     a) Prepare possible factors/variables:
     
       - EDA the data set first. 
+```{r EDA data}
+#check data structure
+str(self_esteem)
+
+#summary table
+self_esteem %>%
+  dplyr::select(-paste0("Esteem81_", c(1:10)),-paste0("Esteem87_", c(1:10))) %>%
+  summary(self_esteem)
+```
+**Check data structure and summary table first.**   
 
       - Personal information: gender, education (05), log(income) in 87, job type in 87. Weight05 (lb) and HeightFeet05 together with Heightinch05. One way to summarize one's weight and height is via Body Mass Index which is defined as the body mass divided by the square of the body height, and is universally expressed in units of kg/m². Note, you need to create BMI first. Then may include it as one possible predictor. 
+```{r Personal information}
+personal_info <- self_esteem %>%
+  filter(Income87 != 0,
+         Income05 != 0,
+         FamilyIncome78 != 0) %>%
+  mutate(log_income = log(Income87),
+         Weight_kg = 0.45*Weight05, #convert to kg
+         height_m = 0.3048*HeightFeet05 + 0.0254*HeightInch05, #convert to m
+         BMI = Weight_kg/(height_m^2)) %>%
+  dplyr::select(Subject, Gender, Education05, log_income, BMI)
+
+
+#remove NaNs
+not_null_val <- which(!is.na(personal_info$log_income))
+personal_info <- personal_info %>%
+  filter(log_income != "NaN")
+```
           
       - Household environment: Imagazine, Inewspaper, Ilibrary, MotherEd, FatherEd, FamilyIncome78. Do set indicators `Imagazine`, `Inewspaper` and `Ilibrary` as factors. 
-    
+```{r Household environment}
+h_env <- self_esteem %>%
+  mutate(Imagazine = as.factor(Imagazine),
+         Inewspaper = as.factor(Inewspaper),
+         Ilibrary = as.factor(Ilibrary)) %>%
+  dplyr::select(Subject, Imagazine, Inewspaper, Ilibrary, MotherEd, FatherEd, FamilyIncome78)
+```
+     
       - You may use PC1 of ASVAB as level of intelligence
+```{r Final data}
+#PC1 of esteem score
+pc1_esteem <- pc$x[,1][not_null_val]
+
+#PC1 of ASVAB
+ASVAB <- self_esteem[,16:26]
+pc_ASVAB <- prcomp(ASVAB, scale = F)
+pc1_ASVAB <- pc_ASVAB$x[,1][not_null_val]
+
+#Final data
+esteem_final <- personal_info %>%
+  inner_join(h_env , by = c("Subject" = "Subject")) %>%
+  mutate(Intelligence = pc1_ASVAB,
+         Esteem = pc1_esteem)
+head(esteem_final)
+```
         
     b)   Run a few regression models between PC1 of all the esteem scores and suitable variables listed in a). Find a final best model with your own criterion. 
 
       - How did you land this model? Run a model diagnosis to see if the linear model assumptions are reasonably met. 
         
       - Write a summary of your findings. In particular, explain what and how the variables in the model affect one's self-esteem. 
-        
+      
+```{r regression models}
+#Backward elimination
+fit <- lm(Esteem ~ Gender+Education05+log_income + BMI+Imagazine+ Inewspaper+ Ilibrary+ MotherEd+ FatherEd+ FamilyIncome78+Intelligence, data = esteem_final)
+library(MASS)
+stepAIC(fit, direction = "backward")
+```        
 
+```{r model diagnosis}
+#Final Model
+fit_final <- lm(formula = Esteem ~ Intelligence, data = esteem_final)
+summary(fit_final)
+plot(fit_final, sub = "Figure 1.7", cex.main = 0.5)
+```
+
+**To find the final model, we first need to consider the type of regression model. Since we take PC1 as our response variable, which is continuous, we should use linear regression. To select variables in the model, I used stepwise variable selection algorithms. More specifically, I included all variables in a complex model.(Interaction terms were not considered here.) Backward elimination begins with this complex model and sequentially removes terms. To select an optimal model, AIC is used as criteria. Because of the bias/variance trade off, It is not automatically best to choose the model with more parameters. The AIC penalizes a model for each additional parameter. The final model should result in a lowest AIC. Eventually, the final model with lowest AIC only includes Intelligence. Based on the plots, we can see linear model assumptions are reasonably met. The coeffient of Intelligence is 0.011649. It indicates Intelligence is positively related with Esteem score. Esteem score is expected to increase 0.012 for every unit increase in Intelligence score.** 
 
 # Case study 2: Breast cancer sub-type
 
