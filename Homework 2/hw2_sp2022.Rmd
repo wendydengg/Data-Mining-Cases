@@ -597,7 +597,7 @@ Remember that the same variable can play different roles! Take a quick look at t
 
 a) Fit a model that treats `cylinders` as a continuous/numeric variable. Is `cylinders` significant at the 0.01 level? What effect does `cylinders` play in this model?
 **Treating cylinders as a continuous variable, it is significant at the 0.01 level (Table 3.4). For each 1-cylinder increase in the number of cylinders, mpg decreases by 3.56 on average (p<0.001).**
-```{r, regression cylinder continuous}
+```{r, regression cylinder continuous, warning=FALSE}
 regression_cylinder_cont <- lm(data = Auto, mpg ~ cylinders)
 summary(regression_cylinder_cont)
 
@@ -606,7 +606,7 @@ stargazer(regression_cylinder_cont, type = output_format, title = "Table 3.4: Re
 
 b) Fit a model that treats `cylinders` as a categorical/factor. Is `cylinders` significant at the .01 level? What is the effect of `cylinders` in this model? Describe the `cylinders` effect over `mpg`. 
 **Treating the number of cylinders as categorical, we compare the effect of the number of cylinders on mpg as compared to our reference, which in this case is 3 cylinders. Our overall test of significance, the F-test, tells us that the number of cylinders is significantly related to mpg at the 0.01 level (p<0.001) (Table 3.5). Cars with 4 cylinders have on average 8.73 higher mpg than cars with 3 cylinders (p<0.001). At the p=0.01 level, there is no significant difference in mpg between cars with 3 cylinders compared to cars with 5, 6, or 8 cylinders.**
-```{r, regression cylinder categorical}
+```{r, regression cylinder categorical, warning=FALSE}
 #Creating a factor version of cylinders
 Auto$cylinders_fact <- as.factor(Auto$cylinders)
 
@@ -623,6 +623,10 @@ c) What are the fundamental differences between treating `cylinders` as a contin
 **A fundamental difference between continuous variables and categorical variables in regression models is that continuous variables contribute one beta to the model, whereas categorical variables contribute N-1 betas to the model, where N=the number of levels of your variable. When looking at the effect of a change in cylinders on MPG, we interpret the categorical beta as the effect of a 1-unit increase in the number of cylinders on MPG. In contrast, for categorical variables, we always compare one category to the reference category, which can be set at whatever value the researcher prefers.**
 
 d) Can you test the null hypothesis: fit0: `mpg` is linear in `cylinders` vs. fit1: `mpg` relates to `cylinders` as a categorical variable at .01 level?  
+**The model including cylinders as a categorical variable is significantly better than the model treating cylinders as continuous at the 0.01 level (p<0.001).**
+```{r, compare cylinder models}
+anova(regression_cylinder_cont, regression_cylinder_cat)
+```
 
 
 ## Results
