@@ -30,7 +30,10 @@ knitr::opts_chunk$set(echo = FALSE, fig.width=8, fig.height=4)
 options(scipen = 0, digits = 3)  # controls base R output
 # check if you have ISLR package, if not, install it
 if(!require('pacman')) {install.packages('pacman')}
-pacman::p_load(ISLR, tidyverse, data.table) # add the packages needed
+pacman::p_load(ISLR, tidyverse, data.table, stargazer, broom)
+
+output_format <- ifelse(is.null(knitr::opts_knit$get("rmarkdown.pandoc.to")),
+                        "text", knitr::opts_knit$get("rmarkdown.pandoc.to"))
 ```
 
 
@@ -555,30 +558,36 @@ mpg_horse
 ## What effect does `time` have on `MPG`?
 
 a) Start with a simple regression of `mpg` vs. `year` and report R's `summary` output. Is `year` a significant variable at the .05 level? State what effect `year` has on `mpg`, if any, according to this model. 
-**Year is significantly related to MPG at the 0.05 level. Every 1-year increase in time is associated with an average MPG increase of 1.23 (p<0.001).**
-```{r, linear regression mpg year}
-regress_mgpyr <- glm(data=Auto, mpg ~ year, family=gaussian)
+**Year is significantly related to MPG at the 0.05 level (Table 3.1). Every 1-year increase in time is associated with an average MPG increase of 1.23 (p<0.001).**
+```{r, linear regression mpg year, warning=FALSE}
+regress_mpgyr <- glm(data=Auto, mpg ~ year, family=gaussian)
 summary(regress_mgpyr)
 confint(regress_mgpyr)
+
+stargazer(regress_mpgyr, type = output_format, title = "Table 3.1: Model Regressing Year on MPG", ci = TRUE)
 ```
 
 
 b) Add `horsepower` on top of the variable `year` to your linear model. Is `year` still a significant variable at the .05 level? Give a precise interpretation of the `year`'s effect found here. 
-**After controlling for horsepower, year is still significantly related to mpg at the 0.05 level. Holding horsepower constant, every 1-year increase in time is associated with an average 0.66 increase in mpg (p<0.001).**
-```{r, regression mgp year horsepower}
+**After controlling for horsepower, year is still significantly related to mpg at the 0.05 level (Table 3.2). Holding horsepower constant, every 1-year increase in time is associated with an average 0.66 increase in mpg (p<0.001).**
+```{r, regression mgp year horsepower, warning=FALSE}
 regress_mpgyrhorse <- glm(data=Auto, mpg ~ year + horsepower, family=gaussian)
 summary(regress_mpgyrhorse)
 confint(regress_mpgyrhorse)
+
+stargazer(regress_mpgyrhorse, type = output_format, title = "Table 3.2: Model Regressing Year and Horsepower on MPG", ci = TRUE)
 ```
 
 c) The two 95% CI's for the coefficient of year differ among (i) and (ii). How would you explain the difference to a non-statistician?
-**FILL THIS IN**
+**Regression models only account for the variables that are included in the model, and the effect estimates and confidence intervals are dependent on what other variables have been included in the model. The first model included year alone, which has a different effect on MPG than year after accounting for horsepower.**
 
 d) Create a model with interaction by fitting `lm(mpg ~ year * horsepower)`. Is the interaction effect significant at .05 level? Explain the year effect (if any). 
-**The interaction between year and horsepower is significant at the 0.05 level. When horsepower is 0, every 1-year increase in time is associated with an average 2.19 increase in mpg (p<0.001). This interpretation is nonsensical in this context, as a car could not have a horsepower of 0. In this case, it would be better to center the variables, which would allow us to interpret the effect of year when horsepower is equal to the sample average. The interaction coefficient tells us the difference in the effect of time (measured in years) for each unit increase in horsepower.**
-```{r, regression w/ interaction}
+**The interaction between year and horsepower is significant at the 0.05 level (Table 3.3). When horsepower is 0, every 1-year increase in time is associated with an average 2.19 increase in mpg (p<0.001). This interpretation is nonsensical in this context, as a car could not have a horsepower of 0. In this case, it would be better to center the variables, which would allow us to interpret the effect of year when horsepower is equal to the sample average. The interaction coefficient tells us the difference in the effect of time (measured in years) for each unit increase in horsepower.**
+```{r, regression w/ interaction, warning=FALSE}
 regress_interaction <- glm(data=Auto, mpg ~ year * horsepower, family=gaussian)
 summary(regress_interaction)
+
+stargazer(regress_interaction, type = output_format, title = "Table 3.3: Regression Model with a Year*Horsepower Interaction", ci = TRUE)
 ```
 
 
@@ -587,14 +596,16 @@ summary(regress_interaction)
 Remember that the same variable can play different roles! Take a quick look at the variable `cylinders`, and try to use this variable in the following analyses wisely. We all agree that a larger number of cylinders will lower mpg. However, we can interpret `cylinders` as either a continuous (numeric) variable or a categorical variable.
 
 a) Fit a model that treats `cylinders` as a continuous/numeric variable. Is `cylinders` significant at the 0.01 level? What effect does `cylinders` play in this model?
-**Treating cylinders as a continuous variable, it is significant at the 0.01 level. For each 1-cylinder increase in the number of cylinders, mpg decreases by 3.56 on average (p<0.001).**
+**Treating cylinders as a continuous variable, it is significant at the 0.01 level (Table 3.4). For each 1-cylinder increase in the number of cylinders, mpg decreases by 3.56 on average (p<0.001).**
 ```{r, regression cylinder continuous}
 regression_cylinder_cont <- lm(data = Auto, mpg ~ cylinders)
 summary(regression_cylinder_cont)
+
+stargazer(regression_cylinder_cont, type = output_format, title = "Table 3.4: Regression Model Treating Cylinders as Continuous", ci = TRUE)
 ```
 
 b) Fit a model that treats `cylinders` as a categorical/factor. Is `cylinders` significant at the .01 level? What is the effect of `cylinders` in this model? Describe the `cylinders` effect over `mpg`. 
-**Treating the number of cylinders as categorical, we compare the effect of the number of cylinders on mpg as compared to our reference, which in this case is 3 cylinders. Our overall test of significance, the F-test, tells us that the number of cylinders is significantly related to mpg at the 0.01 level (p<0.001). Cars with 4 cylinders have on average 8.73 higher mpg than cars with 3 cylinders (p<0.001). At the p=0.01 level, there is no significant difference in mpg between cars with 3 cylinders compared to cars with 5, 6, or 8 cylinders.**
+**Treating the number of cylinders as categorical, we compare the effect of the number of cylinders on mpg as compared to our reference, which in this case is 3 cylinders. Our overall test of significance, the F-test, tells us that the number of cylinders is significantly related to mpg at the 0.01 level (p<0.001) (Table 3.5). Cars with 4 cylinders have on average 8.73 higher mpg than cars with 3 cylinders (p<0.001). At the p=0.01 level, there is no significant difference in mpg between cars with 3 cylinders compared to cars with 5, 6, or 8 cylinders.**
 ```{r, regression cylinder categorical}
 #Creating a factor version of cylinders
 Auto$cylinders_fact <- as.factor(Auto$cylinders)
@@ -603,10 +614,13 @@ Auto$cylinders_fact <- as.factor(Auto$cylinders)
 regression_cylinder_cat <- lm(data = Auto, mpg ~ cylinders_fact)
 summary(regression_cylinder_cat)
 
+stargazer(regression_cylinder_cat, type = output_format, title = "Table 3.5: Regression Model Treating Cylinders as Categorical", ci = TRUE)
+
 ```
 
 
 c) What are the fundamental differences between treating `cylinders` as a continuous and categorical variable in your models? 
+**A fundamental difference between continuous variables and categorical variables in regression models is that continuous variables contribute one beta to the model, whereas categorical variables contribute N-1 betas to the model, where N=the number of levels of your variable. When looking at the effect of a change in cylinders on MPG, we interpret the categorical beta as the effect of a 1-unit increase in the number of cylinders on MPG. In contrast, for categorical variables, we always compare one category to the reference category, which can be set at whatever value the researcher prefers.**
 
 d) Can you test the null hypothesis: fit0: `mpg` is linear in `cylinders` vs. fit1: `mpg` relates to `cylinders` as a categorical variable at .01 level?  
 
@@ -640,8 +654,10 @@ anova(model5, model4)
 ```
   
 a) Describe the final model. Include diagnostic plots with particular focus on the model residuals and diagnoses.
+**Our final model uses weight, number of cylinders, year, and region of origin, plus the interaction between weight and cylinders and the interaction between year and origin to predict the square root of miles per gallon.** 
 
-```{r, final cars model}
+**To select these parameters, we began with all possible variables as predictors of MGP then added interaction terms based on the descriptive graphs we generated in exploratory analysis. From there, we removed non-significant terms and terms which were significant but didn't contribute substantially to the final MPG prediction (e.g., the effect estimate was very small). From there, we tested the assumptions of linearity, homoscedasticity, and normality. We found that the residuals were non-normal, and therefore tested transformations of our outcome of MPG. Although normality was improved with transformation of the outcome, it was still not ideal; for ease of interpretation, we therefore decided to proceed with a model using the non-transformed MPG outcome. Finally, we centered year, weight, and cylinders to allow for ease of interpretation individual coefficients.**
+```{r, final cars model diagnostics hidden}
 final_model <- lm(data=Auto, mpg ~ weight*cylinders + year*origin)
 summary(final_model)
 
@@ -657,7 +673,7 @@ qqnorm(final_model$residuals)
 qqline(final_model$residuals, lwd=4, col="blue")
 #Normality definitely not met. Will try transforming the outcome (mpg) - although this does complicate interpretation.
 
-Auto <- Auto %>% mutate(mpg_log = log(mpg), mpg_sqrt = sqrt(mpg))
+Auto <- Auto %>% mutate(mpg_log = log(mpg), mpg_sqrt = sqrt(mpg), year_center = year-76, weight_center = weight-2978, cylinders_center = cylinders-5.47)
 final_model_2 <- lm(data=Auto, mpg_log ~ weight*cylinders + year*origin)
 summary(final_model_2)
 qqnorm(final_model_2$residuals)
@@ -668,11 +684,45 @@ summary(final_model_3)
 qqnorm(final_model_3$residuals)
 qqline(final_model_3$residuals, lwd=4, col="blue")
 
+
+```
+
+```{r, final cars model visible, echo = TRUE, warning = FALSE}
+final_model <- lm(data=Auto, mpg ~ weight_center*cylinders_center + year_center*origin)
+stargazer(final_model, type = output_format, title = "Table 3.6: Model for Predicting MPG", ci = TRUE) 
+#Linearity and homoscedasticity
+plot(final_model$fitted, final_model$residuals, 
+     pch  = 16,
+     main = "Figure 3.5: Residual plot",
+     xlab = "Fitted Values", 
+     ylab = "Residuals")
+abline(h=0, lwd=4, col="red")
+#Normality
+qqnorm(final_model$residuals,
+       main = "Figure 3.6: Q-Q Plot")
+qqline(final_model$residuals, lwd=4, col="blue")
+
 ```
 
 b) Summarize the effects found.
+**The results of our final model can be found in Table 3.6. Holding all other variables constant, a 1-pound increase in weight is associated with an average 0.007 decrease in MPG (95% CI: -0.008 - -0.006) when the number of cylinders is 5.47 (the sample average). Each one-year increase is associated with a 0.649 increase in MPG for American-made cars, holding all other factors constant (95% CI: 0.534-0.764). Compared to American-made cars, European-made cars have 1.26 greater MPG when the year is 1976 and all other factors are held constant. The difference in average MPG between European- versus American-made cars for every 1 year increase is 0.553 (95% CI: 0.313-0.793). The difference in average MPG between Japanese- versus American-made cars for every 1 year increase is 0.348 (95% CI: 0.133-0.563). The effect of weight and cylinders are related at the 0.05 level. The effect of the number of cylinders is not significant at the 0.05 level, nor is the difference between MPG of Japanese- and American-made cars.**
 
 c) Predict the `mpg` of the following car: A red car built in the US in 1983 that is 180 inches long, has eight cylinders, displaces 350 cu. inches, weighs 4000 pounds, and has a horsepower of 260. Also give a 95% CI for your prediction.
+**Based on our model, this car would be expected to have 21.4 MPG (95% CI: 15.4-27.4).**
+```{r, cars prediction}
+newcar <- Auto[1, ]
+newcar[1] <- "NA"
+newcar[3] <- 350
+newcar[4] <- 260
+newcar[5] <- 4000
+newcar[6] <- "NA"
+newcar[7] <- 83
+newcar[9:16] <- "NA"
+newcar <- newcar %>% mutate(year_center = year-76, weight_center = weight-2978, cylinders_center = cylinders-5.47)
+
+predict(final_model, newcar,  interval = "predict", se.fit = TRUE)
+
+```
 
 
 # Simple Regression through simulations
@@ -694,6 +744,12 @@ x <- seq(0, 1, length = 40)
 ### Generate data
 
 Create a corresponding output vector for $\mathbf{y}$ according to the equation given above. Use `set.seed(1)`. Then, create a scatterplot with $(x_i, y_i)$ pairs. Base R plotting is acceptable, but if you can, please attempt to use `ggplot2` to create the plot. Make sure to have clear labels and sensible titles on your plots.
+```{r}
+set.seed(1)
+
+
+
+```
 
 
 ### Understand the model
