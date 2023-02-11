@@ -457,32 +457,180 @@ brca <- brca[,-1]
 1. Summary and transformation
 
     a) How many patients are there in each sub-type? 
+    
+```{r}
+brca <- fread("data/brca_subtype.csv")
+
+dim(brca)
+names(brca)[1:20]
+table(brca$BRCA_Subtype_PAM50)
+brca$BRCA_Subtype_PAM50 <- as.factor(brca$BRCA_Subtype_PAM50)
+
+# get the sub-type information
+brca_subtype <- brca$BRCA_Subtype_PAM50
+brca <- brca[,-1]
+```
+     - Basal: 208
+     - Her2: 91
+     - LumA: 628
+     - LumB: 233
 
     b) Randomly pick 5 genes and plot the histogram by each sub-type.
 
+```{r}
+num_gene <- ncol(brca)
+
+# randomly select 10 gene
+set.seed(5)
+sample_idx <- sample(num_gene, 5)  
+
+# plot count number histogram for each gene
+brca %>% 
+  select(all_of(sample_idx)) %>%      # select column by index
+  pivot_longer(cols = everything()) %>%     # for facet(0)
+  ggplot(aes(x = value, y = ..density..)) +
+  geom_histogram(aes(fill = name)) +
+  facet_wrap(~name, scales = "free") +
+  theme_bw() +
+  theme(legend.position = "none")
+```
+
     c) Remove gene with zero count and no variability. Then apply logarithmic transform.
+    
+```{r}
+# remove genes with 0 counts
+sel_cols <- which(colSums(abs(brca)) != 0)
+brca_sub <- brca[, sel_cols, with=F]
+dim(brca_sub) 
+
+# log
+brca_sub <- log2(as.matrix(brca_sub+1e-10)) 
+```
 
 
 2. Apply kmeans on the transformed dataset with 4 centers and output the discrepancy table between the real sub-type `brca_subtype` and the cluster labels.
+
+```{r}
+brca_sub_kmeans <- kmeans(x = brca_sub, 4)
+table(brca_subtype, brca_sub_kmeans$cluster)
+```
 
 3. Spectrum clustering: to scale or not to scale?
 
     a) Apply PCA on the centered and scaled dataset. How many PCs should we use and why? You are encouraged to use `irlba::irlba()`.
     
+```{r}
+# center and scale the data
+brca_sub_scaled_centered <- scale(as.matrix(brca_sub), center = T, scale = T)
+svd_ret <- irlba::irlba(brca_sub_scaled_centered, nv = 10)
+
+# Approximate the PVE
+svd_var <- svd_ret$d^2/(nrow(brca_sub_scaled_centered)-1)
+pve_apx <- svd_var/num_gene
+plot(pve_apx, type="b", pch = 19, frame = FALSE)
+```
+
+**With the elbow rule, we should use 4 PCs.**
+    
     b) Plot PC1 vs PC2 of the centered and scaled data and PC1 vs PC2 of the centered but unscaled data side by side. Should we scale or not scale for clustering process? Why? (Hint: to put plots side by side, use `gridExtra::grid.arrange()` or `ggpubr::ggrrange()` or `egg::ggrrange()` for ggplots; use `fig.show="hold"` as chunk option for base plots)
+    
+```{r}
+
+```
 
 4. Spectrum clustering: center but do not scale the data
 
     a) Use the first 4 PCs of the centered and unscaled data and apply kmeans. Find a reasonable number of clusters using within sum of squared with the elbow rule.
+
+```{r}
+
+```
     
     b) Choose an optimal cluster number and apply kmeans. Compare the real sub-type and the clustering label as follows: Plot scatter plot of PC1 vs PC2. Use point color to indicate the true cancer type and point shape to indicate the clustering label. Plot the kmeans centroids with black dots. Summarize how good is clustering results compared to the real sub-type.
     
+```{r}
+# apply kmeans on 4 centers/clusters
+pca_ret_unscaled_kmeans <- kmeans(pca_ret_unscaled$x, centers = 4)
+
+# color indicates the true cancer type
+# shape indicates the cluster results
+p3 <- data.table(x = pca_ret_unscaled$x[,1], 
+                 y = pca_ret_unscaled$x[,2], 
+                 col = as.factor(brca_subtype), 
+                 cl = as.factor(pca_ret_unscaled_kmeans$cluster), 
+                 centers_x = pca_ret_unscaled_kmeans$centers[,1], 
+                 centers_y = pca_ret_unscaled_kmeans$centers[,2])  %>%
+  ggplot() +
+  geom_point(aes(x = x, y = y, col = col, shape = cl)) +
+  scale_color_manual(labels = c("Basal", "Her", "LumA", "LumB"),
+                     values = scales::hue_pal()(4)) +
+  scale_shape_manual(labels = c("Clulster 1", "Cluster 2", "Cluster 3", "Cluster 4"),
+                     values = c(4, 16, 12, 11)) +
+  geom_point(aes(x = centers_x,
+                 y = centers_y, size = 2)) +
+  theme_bw() +
+  labs(color = "Cancer type", shape = "Cluster") +
+  xlab("PC1") +
+  ylab("PC2")
+p3
+```
+    
     c) Compare the clustering result from applying kmeans to the original data and the clustering result from applying kmeans to 4 PCs. Does PCA help in kmeans clustering? What might be the reasons if PCA helps?
+    
+```{r}
+p4 <- data.frame(x = pca_ret_unscaled$x[,1],
+                 y = pca_ret_unscaled$x[,2],
+                 col = as.factor(pca_ret_unscaled_kmeans$cluster),
+                 cl = as.factor(pca_ret_unscaled$cluster)) %>%
+  ggplot() +
+  geom_point(aes(x = x, y = y, col = col, shape = cl)) +
+  scale_color_manual(labels = c("Cluster 1 (full)", "Cluster 2 (full)"),
+                     values = scales::hue_pal()(2)) +
+  scale_shape_manual(labels = c("PC cluster 1", "PC cluster 2"),
+                     values = c(4, 16)) +
+  theme_bw() +
+  labs(color = "Cancer type", shape = "Cluster") +
+  xlab("PC1") +
+  ylab("PC2")
+p4
+```
     
     d) Now we have an x patient with breast cancer but with unknown sub-type. We have this patient's mRNA sequencing data. Project this x patient to the space of PC1 and PC2. (Hint: remember we remove some gene with no counts or no variablity, take log and centered) Plot this patient in the plot in iv) with a black dot. Calculate the Euclidean distance between this patient and each of centroid of the cluster. Can you tell which sub-type this patient might have? 
     
 ```{r}
 x_patient <- fread("data/brca_x_patient.csv")
+dim(x_patient) # row = people, col = genes
+names(x_patient)[1:10]
+
+# remove genes with 0 counts
+sel_cols_x <- which(colSums(abs(x_patient)) != 0)
+x_patient_sub <- x_patient[, sel_cols_x, with=F]
+dim(x_patient_sub) 
+
+# log
+x_patient_sub <- log2(as.matrix(x_patient_sub+1e-10)) 
+
+# centered
+x_ret_unscaled <- prcomp(x_patient_sub, center = T, scale. = F)
+
+
+
+# plots
+p5 <- data.table(x = pca_ret_unscaled$x[,1], 
+                y = pca_ret_unscaled$x[,2],
+                col = as.factor(brca_subtype),
+                cl = as.factor(pca_ret_unscaled_kmeans$cluster))  %>%
+  ggplot() + 
+  geom_point(aes(x = x, y = y, col = col, shape = cl)) +
+  scale_color_manual(labels = c("Basal", "Her", "LumA", "LumB"),
+                     values = scales::hue_pal()(4)) +
+  scale_shape_manual(labels = c("Clulster 1", "Cluster 2", "Cluster 3", "Cluster 4"),
+                     values = c(4, 16, 12, 11)) + 
+  theme_bw() +
+  labs(color = "Cancer type", shape = "Cluster", size = "Centroid") +
+  xlab("PC1") +
+  ylab("PC2")
+p5
 ```
 
 
