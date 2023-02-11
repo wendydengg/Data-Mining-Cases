@@ -535,31 +535,72 @@ plot(pve_apx, type="b", pch = 19, frame = FALSE)
     b) Plot PC1 vs PC2 of the centered and scaled data and PC1 vs PC2 of the centered but unscaled data side by side. Should we scale or not scale for clustering process? Why? (Hint: to put plots side by side, use `gridExtra::grid.arrange()` or `ggpubr::ggrrange()` or `egg::ggrrange()` for ggplots; use `fig.show="hold"` as chunk option for base plots)
     
 ```{r}
+pca_scaled <- prcomp(brca_sub, center = T, scale. = T)
+pca_unscaled <- prcomp(brca_sub, center = T, scale. = F)
 
+pca_scaled$rotation[, 1:2]
+pca_unscaled$rotation[, 1:2]
+
+p1 <- data.frame(
+          pc1 = pca_scaled$x[, 1], 
+          pc2 = pca_scaled$x[, 2],
+          group = as.factor(brca_sub_kmeans$cluster)) %>%
+  ggplot(aes(x = pc1, y = pc2, col = group)) +
+  geom_point() +
+  ggtitle("Clustering over PC1 and PC2")
+
+p2 <- data.frame(
+          pc1 = pca_unscaled$x[, 1], 
+          pc2 = pca_unscaled$x[, 2],
+          group = as.factor(brca_sub_kmeans$cluster)) %>%
+  ggplot(aes(x = pc1, y = pc2, col = group)) +
+  geom_point() +
+  ggtitle("Clustering over PC1 and PC2")
+
+gridExtra::grid.arrange(p1, p2)
 ```
+
+**We should use unscaled data because the clusters are more distinct when using unscaled data.**
 
 4. Spectrum clustering: center but do not scale the data
 
     a) Use the first 4 PCs of the centered and unscaled data and apply kmeans. Find a reasonable number of clusters using within sum of squared with the elbow rule.
 
 ```{r}
+# using plot 
+plot(pca_unscaled)
 
+# using wss
+set.seed(0)
+
+# function to compute total within-cluster sum of square 
+wss <- function(df, k) {
+  kmeans(df, k, nstart = 10)$tot.withinss
+}
+
+k.values <- 2:15
+
+wss_values <- sapply(k.values, function(k) kmeans(brca_sub, centers = k)$tot.withinss)
+
+plot(k.values, wss_values,
+       type="b", pch = 19, frame = FALSE, 
+       xlab="Number of clusters K",
+       ylab="Total within-clusters sum of squares")
+
+pca_unscaled_kmeans <- kmeans(pca_unscaled$x[, 1:4], centers = 4)
 ```
     
     b) Choose an optimal cluster number and apply kmeans. Compare the real sub-type and the clustering label as follows: Plot scatter plot of PC1 vs PC2. Use point color to indicate the true cancer type and point shape to indicate the clustering label. Plot the kmeans centroids with black dots. Summarize how good is clustering results compared to the real sub-type.
     
 ```{r}
-# apply kmeans on 4 centers/clusters
-pca_ret_unscaled_kmeans <- kmeans(pca_ret_unscaled$x, centers = 4)
-
 # color indicates the true cancer type
 # shape indicates the cluster results
-p3 <- data.table(x = pca_ret_unscaled$x[,1], 
-                 y = pca_ret_unscaled$x[,2], 
+p3 <- data.table(x = pca_unscaled$x[,1], 
+                 y = pca_unscaled$x[,2], 
                  col = as.factor(brca_subtype), 
-                 cl = as.factor(pca_ret_unscaled_kmeans$cluster), 
-                 centers_x = pca_ret_unscaled_kmeans$centers[,1], 
-                 centers_y = pca_ret_unscaled_kmeans$centers[,2])  %>%
+                 cl = as.factor(pca_unscaled_kmeans$cluster), 
+                 centers_x = pca_unscaled_kmeans$centers[,1], 
+                 centers_y = pca_unscaled_kmeans$centers[,2])  %>%
   ggplot() +
   geom_point(aes(x = x, y = y, col = col, shape = cl)) +
   scale_color_manual(labels = c("Basal", "Her", "LumA", "LumB"),
@@ -574,26 +615,30 @@ p3 <- data.table(x = pca_ret_unscaled$x[,1],
   ylab("PC2")
 p3
 ```
+
+**The clustering results are not as good when using kmeans because some clusters, especially cluster 3, contain all of the cancer sub-types, which is not the optimal result for clustering analysis since we want the cluster to group distinct elements together.**
     
     c) Compare the clustering result from applying kmeans to the original data and the clustering result from applying kmeans to 4 PCs. Does PCA help in kmeans clustering? What might be the reasons if PCA helps?
     
 ```{r}
-p4 <- data.frame(x = pca_ret_unscaled$x[,1],
-                 y = pca_ret_unscaled$x[,2],
-                 col = as.factor(pca_ret_unscaled_kmeans$cluster),
-                 cl = as.factor(pca_ret_unscaled$cluster)) %>%
+p4 <- data.frame(x = pca_unscaled$x[,1],
+                 y = pca_unscaled$x[,2],
+                 col = as.factor(brca_sub_kmeans$cluster),
+                 cl = as.factor(pca_unscaled_kmeans$cluster)) %>%
   ggplot() +
   geom_point(aes(x = x, y = y, col = col, shape = cl)) +
-  scale_color_manual(labels = c("Cluster 1 (full)", "Cluster 2 (full)"),
-                     values = scales::hue_pal()(2)) +
-  scale_shape_manual(labels = c("PC cluster 1", "PC cluster 2"),
-                     values = c(4, 16)) +
+  scale_color_manual(labels = c("Cluster 1 (full)", "Cluster 2 (full)", "Cluster 3 (full)", "Cluster 4 (full)"),
+                     values = scales::hue_pal()(4)) +
+  scale_shape_manual(labels = c("PC cluster 1", "PC cluster 2", "PC cluster 3", "PC cluster 4"),
+                     values = c(4, 16, 12, 11)) +
   theme_bw() +
   labs(color = "Cancer type", shape = "Cluster") +
   xlab("PC1") +
   ylab("PC2")
 p4
 ```
+
+**PCA does help in kmeans clustering because the clustering results are pretty much the same when kmeans are applied to the original data versus to the 4 PCs, which is likely because we can narrow down the causal genes for the 4 cancer subtypes to 4 main genes and clusters.**
     
     d) Now we have an x patient with breast cancer but with unknown sub-type. We have this patient's mRNA sequencing data. Project this x patient to the space of PC1 and PC2. (Hint: remember we remove some gene with no counts or no variablity, take log and centered) Plot this patient in the plot in iv) with a black dot. Calculate the Euclidean distance between this patient and each of centroid of the cluster. Can you tell which sub-type this patient might have? 
     
@@ -611,7 +656,7 @@ dim(x_patient_sub)
 x_patient_sub <- log2(as.matrix(x_patient_sub+1e-10)) 
 
 # centered
-x_ret_unscaled <- prcomp(x_patient_sub, center = T, scale. = F)
+x_centered <- prcomp(x_patient_sub, center = T, scale. = F)
 
 
 
