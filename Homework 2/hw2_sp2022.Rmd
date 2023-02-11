@@ -507,7 +507,6 @@ dim(brca_sub)
 brca_sub <- log2(as.matrix(brca_sub+1e-10)) 
 ```
 
-
 2. Apply kmeans on the transformed dataset with 4 centers and output the discrepancy table between the real sub-type `brca_subtype` and the cluster labels.
 
 ```{r}
