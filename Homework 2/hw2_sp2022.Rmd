@@ -995,6 +995,7 @@ plot(linear$fitted, linear$residuals,
      ylim = c(-8, 8),
      main = "Figure 4.2: Residual plot")
 abline(h=0, lwd=4, col="red")
+
 ```
 
 ii. Provide a normal QQ plot of the residuals.
@@ -1034,19 +1035,30 @@ for (i in 1:n_sim){
 results <- as.data.frame(cbind(se, b1, upper_ci, lower_ci))
 
 # remove unecessary variables from our workspace
-#rm(se, b1, upper_ci, lower_ci, x, n_sim, b1, t_star, lse, lse_out) 
+rm(se, b1, upper_ci, lower_ci, x, n_sim, b1, t_star, lse, lse_out) 
 
 ```
 
 i. Summarize the LS estimates of $\boldsymbol{\beta}_1$ (stored in `results$b1`). Does the sampling distribution agree with theory? 
 ```{r, sample LS}
-summary(results$b1)
-sd(results$b1)
+#plot b1
+results %>%
+  ggplot(aes(x = b1)) + 
+  geom_histogram(aes(y = after_stat(density)), bins = 30) + 
+  stat_function(
+    fun = dnorm, 
+    args = list(mean = mean(results$b1), sd = sd(results$b1)), 
+    lwd = 2, 
+    col = 'red'
+  )
+
 ```
+**The sampling distribution of $\hat{\beta_1}$ can be approximated as a normal distribution, which agrees with theory.**
 
 ii.  How many of your 95% confidence intervals capture the true $\boldsymbol{\beta}_1$? Display your confidence intervals graphically. 
 **95 of the confidence intervals capture the true value of B1 (or 95% of the simulations).**
 ```{r, sample plot}
+#plot1
 results <- arrange(results, upper_ci)
 results$num <- seq(1,100)
 results <- results %>% mutate(contains_beta = ifelse(upper_ci>1.2 & lower_ci<1.2, 1, 0))
@@ -1056,11 +1068,16 @@ plot <- ggplot(data=results) +
   geom_line(data=results, aes(x=num, y=upper_ci)) +
   geom_line(data=results, aes(x=num, y=lower_ci)) +
   geom_line(aes(x=num, y=1.2), color="blue") +
-  labs(title = "Figure 4.3: ", subtitle = "Graph of 95% CIs for each simulation", y = "Value of Beta1", x = "Simulation number") 
+  labs(title = "Figure 4.3.1: ", subtitle = "Graph of 95% CIs for each simulation", y = "Value of Beta1", x = "Simulation number") 
 plot
 
-
+#plot2
+ggplot(results, aes(num, b1)) + geom_point() + 
+  geom_errorbar(aes(ymin = lower_ci, ymax = upper_ci)) +
+  geom_hline(yintercept = 1.2, color = "blue") + 
+  labs(title = "Figure 4.3.2: ", subtitle = "Graph of 95% CIs for each simulation", y = "Value of Beta1", x = "Simulation number") 
 ```
+
 
 
 
