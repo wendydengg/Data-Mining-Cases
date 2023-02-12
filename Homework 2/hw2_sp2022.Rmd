@@ -492,7 +492,10 @@ brca %>%
   geom_histogram(aes(fill = name)) +
   facet_wrap(~name, scales = "free") +
   theme_bw() +
-  theme(legend.position = "none")
+  theme(legend.position = "none") +
+  labs(title = "Figure 1.1:",
+       subtitle = "Histogram of 5 Random Genes")
+  
 ```
 
     c) Remove gene with zero count and no variability. Then apply logarithmic transform.
@@ -526,10 +529,10 @@ svd_ret <- irlba::irlba(brca_sub_scaled_centered, nv = 10)
 # Approximate the PVE
 svd_var <- svd_ret$d^2/(nrow(brca_sub_scaled_centered)-1)
 pve_apx <- svd_var/num_gene
-plot(pve_apx, type="b", pch = 19, frame = FALSE)
+plot(pve_apx, type="b", pch = 19, frame = FALSE, main = "Figure 1.2: PVE plot")
 ```
 
-**With the elbow rule, we should use 4 PCs.**
+**With the elbow rule on Figure 1.2, we should use 4 PCs.**
     
     b) Plot PC1 vs PC2 of the centered and scaled data and PC1 vs PC2 of the centered but unscaled data side by side. Should we scale or not scale for clustering process? Why? (Hint: to put plots side by side, use `gridExtra::grid.arrange()` or `ggpubr::ggrrange()` or `egg::ggrrange()` for ggplots; use `fig.show="hold"` as chunk option for base plots)
     
@@ -546,7 +549,8 @@ p1 <- data.frame(
           group = as.factor(brca_sub_kmeans$cluster)) %>%
   ggplot(aes(x = pc1, y = pc2, col = group)) +
   geom_point() +
-  ggtitle("Clustering over PC1 and PC2")
+  labs(title = "Figure 1.3:",
+       subtitle = "Clustering over PC1 and PC2 of Scaled Data")
 
 p2 <- data.frame(
           pc1 = pca_unscaled$x[, 1], 
@@ -554,12 +558,13 @@ p2 <- data.frame(
           group = as.factor(brca_sub_kmeans$cluster)) %>%
   ggplot(aes(x = pc1, y = pc2, col = group)) +
   geom_point() +
-  ggtitle("Clustering over PC1 and PC2")
+  labs(title = "Figure 1.4:",
+       subtitle = "Clustering over PC1 and PC2 of Unscaled Data")
 
 gridExtra::grid.arrange(p1, p2)
 ```
 
-**We should use unscaled data because the clusters are more distinct when using unscaled data.**
+**We should use unscaled data because the clusters in Figure 1.4 are more distinct compared to the clusters in Figure 1.3.**
 
 4. Spectrum clustering: center but do not scale the data
 
@@ -584,7 +589,8 @@ wss_values <- sapply(k.values, function(k) kmeans(brca_sub, centers = k)$tot.wit
 plot(k.values, wss_values,
        type="b", pch = 19, frame = FALSE, 
        xlab="Number of clusters K",
-       ylab="Total within-clusters sum of squares")
+       ylab="Total within-clusters sum of squares",
+       main = "Figure 1.5: WSS plot")
 
 pca_unscaled_kmeans <- kmeans(pca_unscaled$x[, 1:4], centers = 4)
 ```
@@ -607,15 +613,17 @@ p3 <- data.table(x = pca_unscaled$x[,1],
   scale_shape_manual(labels = c("Clulster 1", "Cluster 2", "Cluster 3", "Cluster 4"),
                      values = c(4, 16, 12, 11)) +
   geom_point(aes(x = centers_x,
-                 y = centers_y, size = 2)) +
+                 y = centers_y, size = 1)) +
   theme_bw() +
   labs(color = "Cancer type", shape = "Cluster") +
   xlab("PC1") +
-  ylab("PC2")
+  ylab("PC2") + 
+  labs(title = "Figure 1.6:",
+       subtitle = "Clustering over PC1 and PC2")
 p3
 ```
 
-**The clustering results are not as good when using kmeans because some clusters, especially cluster 3, contain all of the cancer sub-types, which is not the optimal result for clustering analysis since we want the cluster to group distinct elements together.**
+**The clustering results are not as good when using kmeans because some clusters, especially cluster 3 in Figure 1.6, contain all of the cancer sub-types, which is not the optimal result for clustering analysis since we want the cluster to group distinct elements together.**
     
     c) Compare the clustering result from applying kmeans to the original data and the clustering result from applying kmeans to 4 PCs. Does PCA help in kmeans clustering? What might be the reasons if PCA helps?
     
@@ -633,7 +641,9 @@ p4 <- data.frame(x = pca_unscaled$x[,1],
   theme_bw() +
   labs(color = "Cancer type", shape = "Cluster") +
   xlab("PC1") +
-  ylab("PC2")
+  ylab("PC2") + 
+  labs(title = "Figure 1.7:",
+       subtitle = "Clustering over Original Data")
 p4
 ```
 
@@ -643,7 +653,7 @@ p4
     
 ```{r}
 x_patient <- fread("data/brca_x_patient.csv")
-dim(x_patient) # row = people, col = genes
+dim(x_patient)
 names(x_patient)[1:10]
 
 # remove genes with 0 counts
@@ -654,29 +664,30 @@ dim(x_patient_sub)
 # log
 x_patient_sub <- log2(as.matrix(x_patient_sub+1e-10)) 
 
-# centered
-x_centered <- prcomp(x_patient_sub, center = T, scale. = F)
-
-
+scale(x_patient_sub, pca_unscaled$center, pca_unscaled$scale) %*% pca_unscaled$rotation
 
 # plots
-p5 <- data.table(x = pca_ret_unscaled$x[,1], 
-                y = pca_ret_unscaled$x[,2],
-                col = as.factor(brca_subtype),
-                cl = as.factor(pca_ret_unscaled_kmeans$cluster))  %>%
-  ggplot() + 
+p5 <- data.table(x = pca_unscaled$x[,1], 
+                 y = pca_unscaled$x[,2], 
+                 col = as.factor(brca_subtype), 
+                 cl = as.factor(pca_unscaled_kmeans$cluster))  %>%
+  ggplot() +
   geom_point(aes(x = x, y = y, col = col, shape = cl)) +
   scale_color_manual(labels = c("Basal", "Her", "LumA", "LumB"),
                      values = scales::hue_pal()(4)) +
   scale_shape_manual(labels = c("Clulster 1", "Cluster 2", "Cluster 3", "Cluster 4"),
-                     values = c(4, 16, 12, 11)) + 
+                     values = c(4, 16, 12, 11)) +
+  geom_point(aes(x = x_pc1,
+                 y = x_pc2, size = 1)) +
   theme_bw() +
-  labs(color = "Cancer type", shape = "Cluster", size = "Centroid") +
+  labs(color = "Cancer type", shape = "Cluster") +
   xlab("PC1") +
-  ylab("PC2")
+  ylab("PC2") +
+  labs(title = "Figure 1.6:",
+       subtitle = "Clustering over PC1 and PC2 wth Patient X")
 p5
 ```
-
+****
 
 # Case study 3: Auto data set
 
