@@ -653,38 +653,44 @@ p4
     
 ```{r}
 x_patient <- fread("data/brca_x_patient.csv")
-dim(x_patient)
-names(x_patient)[1:10]
+x_patient <- log2(as.matrix(x_patient+1e-10)) 
+x_patient <- data.frame(x_patient)
+x_patient_sub <- data.frame()
 
-# remove genes with 0 counts
-sel_cols_x <- which(colSums(abs(x_patient)) != 0)
-x_patient_sub <- x_patient[, sel_cols_x, with=F]
-dim(x_patient_sub) 
+i = 1
+while (i <= length(colnames(brca_sub))) {
+  if (colnames(brca_sub)[i] %in% colnames(x_patient) == TRUE) {
+    x_patient_sub[1,i] = x_patient[,colnames(x_patient)[i]] #if same gene as brca_sub, append gene name and gene counts directly
+    colnames(x_patient_sub)[i] = colnames(x_patient)[i]
+  } else {
+    x_patient_sub[1,i] = 0
+    colnames(x_patient_sub)[i] = colnames(brca_sub)[i] #if x_patient info does not contain same gene as brca_sub, append gene name and set counts = 0
+  }
+  i = i+1
+}
 
-# log
-x_patient_sub <- log2(as.matrix(x_patient_sub+1e-10)) 
+pc_score_x <- scale(x_patient_sub, pca_unscaled$center, pca_unscaled$scale) %*% pca_unscaled$rotation
 
-scale(x_patient_sub, pca_unscaled$center, pca_unscaled$scale) %*% pca_unscaled$rotation
-
-# plots
 p5 <- data.table(x = pca_unscaled$x[,1], 
                  y = pca_unscaled$x[,2], 
                  col = as.factor(brca_subtype), 
-                 cl = as.factor(pca_unscaled_kmeans$cluster))  %>%
+                 cl = as.factor(pca_unscaled_kmeans$cluster), 
+                 x_pc = pc_score_x[,1], 
+                 y_px = pc_score_x[,2])  %>%
   ggplot() +
   geom_point(aes(x = x, y = y, col = col, shape = cl)) +
   scale_color_manual(labels = c("Basal", "Her", "LumA", "LumB"),
                      values = scales::hue_pal()(4)) +
   scale_shape_manual(labels = c("Clulster 1", "Cluster 2", "Cluster 3", "Cluster 4"),
                      values = c(4, 16, 12, 11)) +
-  geom_point(aes(x = x_pc1,
-                 y = x_pc2, size = 1)) +
+  geom_point(aes(x = x_pc,
+                 y = y_px, size = 1)) +
   theme_bw() +
-  labs(color = "Cancer type", shape = "Cluster") +
+  labs(color = "Cancer type", shape = "Cluster", size = "Patient X") +
   xlab("PC1") +
   ylab("PC2") +
   labs(title = "Figure 1.6:",
-       subtitle = "Clustering over PC1 and PC2 wth Patient X")
+       subtitle = "Clustering over PC1 and PC2")
 p5
 ```
 ****
