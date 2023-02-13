@@ -615,7 +615,7 @@ p3 <- data.table(x = pca_unscaled$x[,1],
   geom_point(aes(x = centers_x,
                  y = centers_y, size = 1)) +
   theme_bw() +
-  labs(color = "Cancer type", shape = "Cluster") +
+  labs(color = "Cancer type", shape = "Cluster", size = "Centroid") +
   xlab("PC1") +
   ylab("PC2") + 
   labs(title = "Figure 1.6:",
