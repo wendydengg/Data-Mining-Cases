@@ -26,7 +26,8 @@ urlcolor: blue
 
 
 ```{r setup, include=FALSE}
-
+knitr::opts_chunk$set(fig.width=8, fig.height=4)
+options(scipen = 0, digits = 3)  # controls base R output
 # check if you have ISLR package, if not, install it
 if(!require('pacman')) {install.packages('pacman')}
 pacman::p_load(tidyverse, cluster, factoextra, data.table, irlba, pheatmap, ISLR, stargazer, broom, ggrepel, devtools, htmltools, tidyselect)
@@ -204,10 +205,11 @@ x %>%
   labs(title = "Figure 1.1:",
        subtitle = "Histogram of 10 esteem measurements")
 ```
+
 **Since we reverse the order in 1.2.1, higher score corresponds to higher self-esteem. We can see the scores are high in the measurements associated with positive attitude from the bar plots. For the measurements associated with negative attitude, the scores are also mainly 3 or 4, indicating most of individuals disagree with the negative measurements.**
 
 3. Do esteem scores all positively correlated? Report the pairwise correlation table and write a brief summary.
-```{r correlation}
+```{r correlation, warning=FALSE}
 library(kableExtra)
 library(magrittr)
 cor_esteem <- cor(data_esteem)
@@ -240,6 +242,7 @@ round(cor(pc12),2)
 - **The PC1 and PC2 loadings are unit vectors, but they are not orthogonal.**
 
     b) Are there good interpretations for PC1 and PC2? (If loadings are all negative, take the positive loadings for the ease of interpretation)
+    
   **Interpretations for PC1: The values of ten loadings are approximately proportional to the sum of esteem scores. The absolute values are approximately around 0.3. Higher PC1 indicates higher self-esteem**
 **Interpretations for PC2: The values and signs of ten loadings can be interpreted as the difference between sum of esteem scores indicating strongly negative attitude and sum of esteem scores indicating slightly negative/positive attitude.**
 
@@ -271,6 +274,7 @@ plot(summary(pc)$importance[2,],
      ylab = "PVE",
      main = "Figure 1.2: PVE plot")
 ```
+
 **The plot indicates 4 leading PCs should be enough. Among those PCs, first PC can explain most proportion of the variance.**
 
     f) Also plot CPVE (Cumulative Proportion of Variance Explained). What proportion of the variance in the data is explained by the first two principal components?
@@ -284,7 +288,9 @@ plot(summary(pc)$importance[3,],
 #summary
 summary(pc)
 ```
+
 **First two principal components explained 59.3% variance in the original data.**
+   
     g) PC’s provide us with a low dimensional view of the self-esteem scores. Use a biplot with the first two PC's to display the data.  Give an interpretation of PC1 and PC2 from the plot. (try `ggbiplot` if you could, much prettier!)
     
 ```{r install ggbiplot, include=FALSE}
@@ -293,7 +299,7 @@ install.packages("htmltools")
 devtools::install_github("vqv/ggbiplot")
 ```
 
-```{r biplot}
+```{r biplot, warning=FALSE, message=FALSE}
 library(ggbiplot)
 ggbiplot(pc, obs.scale = 1, var.scale = 1)+
   geom_hline(yintercept = 0,color = "blue")+
@@ -312,6 +318,7 @@ set.seed(83)
 fviz_nbclust(data_esteem, kmeans, method = "wss")+
   labs(title = "Figure 1.5:", subtitle = "Optimal number of clusters")
 ```
+
 **Two clusters are a reasonable number based on the elbow rules.**
 
     b) Can you summarize common features within each cluster?
@@ -320,6 +327,7 @@ fviz_nbclust(data_esteem, kmeans, method = "wss")+
 esteem_kmeans <- kmeans(data_esteem, centers = 2)
 str(esteem_kmeans)
 ```
+
 **We do not know any info from clustering results since it is unsupervised. We do not know the label of samples.**
 
     c) Can you visualize the clusters with somewhat clear boundaries? You may try different pairs of variables and different PC pairs of the esteem scores.
@@ -342,6 +350,7 @@ ggplot(aes(x = pc1, y = pc2, col = cluster))+
   geom_point()+
   labs(title = "Figure 1.6:", subtitle = "Clustering over PCs")
 ```
+
 **Because esteem scores are categorical, clusters can not be visualized with clear boundaries. By using PCs, we can get clear boundaries of two groups.**
 
 
@@ -359,6 +368,7 @@ self_esteem %>%
   dplyr::select(-paste0("Esteem81_", c(1:10)),-paste0("Esteem87_", c(1:10))) %>%
   summary(self_esteem)
 ```
+
 **Check data structure and summary table first.**   
 
       - Personal information: gender, education (05), log(income) in 87, job type in 87. Weight05 (lb) and HeightFeet05 together with Heightinch05. One way to summarize one's weight and height is via Body Mass Index which is defined as the body mass divided by the square of the body height, and is universally expressed in units of kg/m². Note, you need to create BMI first. Then may include it as one possible predictor. 
@@ -413,7 +423,7 @@ head(esteem_final)
         
       - Write a summary of your findings. In particular, explain what and how the variables in the model affect one's self-esteem. 
       
-```{r regression models}
+```{r regression models, echo=FALSE}
 #Backward elimination
 fit <- lm(Esteem ~ Gender+Education05+log_income + BMI+Imagazine+ Inewspaper+ Ilibrary+ MotherEd+ FatherEd+ FamilyIncome78+Intelligence, data = esteem_final)
 library(MASS)
@@ -469,14 +479,14 @@ brca$BRCA_Subtype_PAM50 <- as.factor(brca$BRCA_Subtype_PAM50)
 brca_subtype <- brca$BRCA_Subtype_PAM50
 brca <- brca[,-1]
 ```
-     - Basal: 208
-     - Her2: 91
-     - LumA: 628
-     - LumB: 233
+     **Basal: 208**
+     **Her2: 91**
+     **LumA: 628**
+     **LumB: 233**
 
     b) Randomly pick 5 genes and plot the histogram by each sub-type.
 
-```{r, echo=TRUE}
+```{r, echo=TRUE, warning=FALSE, message=FALSE}
 num_gene <- ncol(brca)
 
 # randomly select 5 gene
@@ -492,7 +502,7 @@ brca %>%
   facet_wrap(~name, scales = "free") +
   theme_bw() +
   theme(legend.position = "none") +
-  labs(title = "Figure 1.1:",
+  labs(title = "Figure 2.1:",
        subtitle = "Histogram of 5 Random Genes")
   
 ```
@@ -528,27 +538,29 @@ svd_ret <- irlba::irlba(brca_sub_scaled_centered, nv = 10)
 # Approximate the PVE
 svd_var <- svd_ret$d^2/(nrow(brca_sub_scaled_centered)-1)
 pve_apx <- svd_var/num_gene
-plot(pve_apx, type="b", pch = 19, frame = FALSE, main = "Figure 1.2: PVE plot")
+plot(pve_apx, type="b", pch = 19, frame = FALSE, main = "Figure 2.2: PVE plot")
 ```
 
 **With the elbow rule on Figure 1.2, we should use 4 PCs.**
     
     b) Plot PC1 vs PC2 of the centered and scaled data and PC1 vs PC2 of the centered but unscaled data side by side. Should we scale or not scale for clustering process? Why? (Hint: to put plots side by side, use `gridExtra::grid.arrange()` or `ggpubr::ggrrange()` or `egg::ggrrange()` for ggplots; use `fig.show="hold"` as chunk option for base plots)
     
-```{r}
+```{r, echo=FALSE, results='hide'}
 pca_scaled <- prcomp(brca_sub, center = T, scale. = T)
 pca_unscaled <- prcomp(brca_sub, center = T, scale. = F)
 
 pca_scaled$rotation[, 1:2]
 pca_unscaled$rotation[, 1:2]
+```
 
+```{r}
 p1 <- data.frame(
           pc1 = pca_scaled$x[, 1], 
           pc2 = pca_scaled$x[, 2],
           group = as.factor(brca_sub_kmeans$cluster)) %>%
   ggplot(aes(x = pc1, y = pc2, col = group)) +
   geom_point() +
-  labs(title = "Figure 1.3:",
+  labs(title = "Figure 2.3:",
        subtitle = "Clustering over PC1 and PC2 of Scaled Data")
 
 p2 <- data.frame(
@@ -557,7 +569,7 @@ p2 <- data.frame(
           group = as.factor(brca_sub_kmeans$cluster)) %>%
   ggplot(aes(x = pc1, y = pc2, col = group)) +
   geom_point() +
-  labs(title = "Figure 1.4:",
+  labs(title = "Figure 2.4:",
        subtitle = "Clustering over PC1 and PC2 of Unscaled Data")
 
 gridExtra::grid.arrange(p1, p2)
@@ -589,7 +601,7 @@ plot(k.values, wss_values,
        type="b", pch = 19, frame = FALSE, 
        xlab="Number of clusters K",
        ylab="Total within-clusters sum of squares",
-       main = "Figure 1.5: WSS plot")
+       main = "Figure 2.5: WSS plot")
 
 pca_unscaled_kmeans <- kmeans(pca_unscaled$x[, 1:4], centers = 4)
 ```
@@ -1047,7 +1059,7 @@ iii. Comment on how well the model assumptions are met for the sample you used.
 This part aims to help you understand the notion of sampling statistics and confidence intervals. Let's concentrate on estimating the slope only.  
 
 Generate 100 samples of size $n = 40$, and estimate the slope coefficient from each sample. We include some sample code below, which should guide you in setting up the simulation. Note: this code is easier to follow but suboptimal; see the appendix for a more optimal R-like way to run this simulation.
-```{r, eval = F, echo = TRUE}
+```{r, eval = T, echo = TRUE}
 # Inializing variables. Note b_1, upper_ci, lower_ci are vectors
 x <- seq(0, 1, length = 40) 
 n_sim <- 100              # number of simulations
@@ -1069,7 +1081,7 @@ for (i in 1:n_sim){
 results <- as.data.frame(cbind(se, b1, upper_ci, lower_ci))
 
 # remove unecessary variables from our workspace
-rm(se, b1, upper_ci, lower_ci, x, n_sim, t_star, lse, lse_output) 
+#rm(se, b1, upper_ci, lower_ci, x, n_sim, t_star, lse, lse_output) 
 
 ```
 
