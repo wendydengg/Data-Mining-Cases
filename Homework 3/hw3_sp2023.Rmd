@@ -1,9 +1,9 @@
 ---
 title: "Modern Data Mining, HW 3"
 author:
-- Group Member 1
-- Group Member 2
-- Group Member 3
+- Group Member Wendy Deng
+- Group Member Ruolan Li
+- Group Member Kira Nightingale
 date: 'Due: 11:59Pm,  2/26, 2023'
 output:
   pdf_document:
@@ -88,19 +88,121 @@ Final modelling question: We want to explore the effects of each feature as best
 1) Preparing variables: 
 
 a) You may explore the possibility of variable transformations. We normally do not suggest to transform $x$ for the purpose of interpretation. You may consider to transform $y$ to either correct the violation of the linear model assumptions or if you feel a transformation of $y$ makes more sense from some theory. In this case we suggest you to look into `GPM=1/MPG`. Compare residual plots of MPG or GPM as responses and see which one might yield a more satisfactory patterns. 
+```{r data input,include=FALSE}
+library(ISLR)
+data(Auto)
+```
+
+```{r variable transformations}
+library(dplyr)
+#use MPG as response
+Auto <- Auto %>%
+  dplyr::select(-name) %>%
+  mutate(origin = as.factor(origin)) #remove name column and convert origin as categorical variable
+fit_mpg <- lm(mpg ~ ., data = Auto)
+
+
+#use GPM as response
+Auto_gpm <- Auto %>%
+  mutate(gpm = 1/mpg) %>%
+  dplyr::select(-mpg)
+fit_gpm <- lm(gpm ~ ., data = Auto_gpm)
+
+#residual plots
+par(mfrow = c(1,2))
+plot(fit_mpg, 1)
+plot(fit_gpm, 1)
+
+```
+**The residual plots indicate using GPM as response is more appropriate. The residual plot of GPM (on the right) is more close to a horizontal line, which indicates the relationship is more linear. Using GPM as response variable meets the regression assumptions. The residual plot of MPG suggests there may exist non-linear relationship.**
 
 In addition, can you provide some background knowledge to support the notion: it makes more sense to model `GPM`?  
 
+**GPM measures fuel consumed per unit of distance, whereas MPG measures distance per unit of fuel consumed. GPM can reflect the actual difference in fuel consumption conditioning on same miles.**
+
 b) You may also explore by adding interactions and higher order terms. The model(s) should be as *parsimonious* (simple) as possible, unless the gain in accuracy is significant from your point of view. 
 
+```{r check interaction}
+fit_gpm1 <- lm(gpm ~ .+horsepower*origin, data = Auto_gpm)
+anova(fit_gpm, fit_gpm1)
+```
+
+**Because origin might affect horsepower, we checked interaction term of origin and horsepower. The p-value of F statistic is 0.3256, therefore, we fail to reject $H_0$, there is no significant difference between the model without interaction term and model with interaction term. That is to say, the interaction of horsepower and origin is not significant, and we do not need to include it in our model.**
+
 c) Use Mallow's $C_p$ or BIC to select the model.
+```{r selection with Cp}
+library(leaps)
+#model building
+fit.exh <- regsubsets(gpm ~ ., data = Auto_gpm, nvmax = 10, method="exhaustive")
+summary(fit.exh) 
+
+#Plot the Cp values
+f.e <- summary(fit.exh)
+f.e$cp
+plot(f.e$cp, xlab="Number of predictors",
+     ylab="Cp", col="red", pch=16, cex =3,
+     main = "Plot 1.1: Cp values")
+
+```
+**By using Mallow’s $C_p$, we can see a model with all 8 variables has the smaller prediction error.**
 
 2) Describe the final model and its accuracy. Include diagnostic plots with particular focus on the model residuals.
+```{r}
+#Final model
+fit.exh.var <- f.e$which
+final_var <- colnames(fit.exh.var)[fit.exh.var[5,]]
+final_var
+Auto_gpm1 <- Auto_gpm %>%
+  mutate(origin2 = if_else(origin == 2, "1","0")) %>%
+  dplyr::select(-origin) #if origin=2, assign it = 1, else = 0
 
+#model summary
+coef(fit.exh,5)
+
+#diagnostic plots 
+plot(f.e$rss, xlab="RSS", pch = 14, col="green", cex=2, main = "Plot 1.2: RSS plot")
+final_fit <- lm(gpm ~ horsepower+weight+acceleration+year+origin2, data = Auto_gpm1)
+plot(final_fit,1, main = "Plot 1.3",adj=0)
+plot(final_fit,2, main = "Plot 1.4",adj=0)
+```
+**Since the $C_p$ values are similar in scale, we choose final model with 5 variables. Small $C_p$ value indicates more accurate model. The final model is:$$gpm = 0.09662+0.0001081*horsepower+0.00001155*weight+0.00033*acceleration-0.001307year-0.00187*origin2$$**
+
+- **From plot 1.2, we can see RSS is pretty small when selecting 5 variables.**
+- **Plot 1.3 and 1.4 indicates the final model meets linearity and homoscedasticity assumption.**  
   * Summarize the effects found.
-  * Predict the `mpg` of a car that is: built in 1983, in the US, red, 180 inches long, 8 cylinders, 350 displacement, 260 as horsepower, and weighs 4,000 pounds. Give a 95% CI.
-  * Any suggestions as to how to improve the quality of the study?
+```{r Summarize the effects found}
+summary(final_fit)
+```  
+- **$R^2$ is 0.8835 when selecting 5 variables, which suggests final model fits the data well.**
+- **The p-values of all variables selected are significant. Interpretation of $\hat{\beta_i}$: take horsepower as an example, controlling for other variables, gpm will increase 0.0001081 if there is one unit increase in horsepower.**
 
+  * Predict the `mpg` of a car that is: built in 1983, in the US, red, 180 inches long, 8 cylinders, 350 displacement, 260 as horsepower, and weighs 4,000 pounds. Give a 95% CI.
+```{r predict}
+#car info 
+car_predict <- Auto_gpm1[1,]
+car_predict$gpm = NA
+car_predict$cylinders = 8
+car_predict$displacement = 350
+car_predict$horsepower = 260
+car_predict$weight = 4000
+car_predict$acceleration = mean(Auto_gpm1$acceleration) #no info about acceleration, use mean of acceleration in the whole data to impute missing value
+car_predict$year = 83
+car_predict$origin2 = as.factor(0)
+
+#predict
+car_gpm <- predict(final_fit, car_predict, interval = "confidence", se.fit = TRUE) #predicted gpm
+car_mpg <- 1/car_gpm$fit[1]
+car_mpg_ci <- c(1/car_gpm$fit[3], 1/car_gpm$fit[2]) #reciprocal of gpm ci
+car_mpg
+car_mpg_ci
+```
+**The predicted mpg for this car is 14.8. 95% CI for mpg is (13.6, 16.2).**
+
+  * Any suggestions as to how to improve the quality of the study?
+```{r suggestions}
+dim(Auto_gpm)
+```
+**The sample size of the study is 392. More observations can be collected if possible. Also, the study could include more variables, such as Type of Transmission.**
 
 # Case study 2: COVID19
 
