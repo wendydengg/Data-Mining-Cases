@@ -48,7 +48,7 @@ There are two main goals for this case study.
 4. Hide all unnecessary lengthy R-output. Keep your write up neat, readable. 
 
   
-**Remark1:** The data and the statistics reported here were collected before February of 2021. 
+**Remark 1:** The data and the statistics reported here were collected before February of 2021. 
 
 **Remark 2:** A group of RAs spent tremendous amount of time working together to assemble the data. It requires data wrangling skills. 
 
@@ -111,7 +111,6 @@ table(county_data$State)
 ```
 
 ii) Create **weekly new** cases per 100k `weekly_case_per100k`. Plot the spaghetti plots of `weekly_case_per100k` by state. Use `TotalPopEst2019` as population.
-
 
 
 iii) Summarize the COVID case trend among states based on the plot in ii). What could be the possible reasons to explain the variabilities? 
