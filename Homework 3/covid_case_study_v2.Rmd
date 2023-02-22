@@ -6,18 +6,25 @@ author:
 - Group Member 3
 date: 'Due before midnight, Feb 26'
 output:
+  pdf_document:
+    extra_dependencies: ["dcolumn"]
+    number_sections: yes
+    toc: yes
+    toc_depth: '4'
   html_document:
-    code_folding: hide
+    code_folding: show
     highlight: haddock
+    number_sections: yes
     theme: lumen
     toc: yes
     toc_depth: 4
     toc_float: yes
-    number_sections: yes
-  pdf_document:
+  word_document:
+    toc: yes
     toc_depth: '4'
-    number_sections: yes
 urlcolor: blue
+---
+
 ---
 
 ```{r Setup, include=FALSE, results='hide', warning=FALSE}
@@ -48,7 +55,7 @@ There are two main goals for this case study.
 4. Hide all unnecessary lengthy R-output. Keep your write up neat, readable. 
 
   
-**Remark 1:** The data and the statistics reported here were collected before February of 2021. 
+**Remark1:** The data and the statistics reported here were collected before February of 2021. 
 
 **Remark 2:** A group of RAs spent tremendous amount of time working together to assemble the data. It requires data wrangling skills. 
 
@@ -90,8 +97,7 @@ county_data <- fread("data/covid_county.csv")
 names(county_data)
 nrow(table(county_data$State)) # outputs 53, includes 50 states and US territories
 table(county_data$State)
-nrow(county_data) # outputs 3279, but there are only 3243 counties as of 2022 according to Google
-nrow(table(county_data$State))
+nrow(county_data) # outputs 3279, one of them is US
 
 # remove non-counties
 county_data <- county_data %>%
@@ -108,7 +114,7 @@ names(covid_rate)
 
 The detailed description of variables is in `Appendix 1: Data description`. Please get familiar with the variables. Summarize the two data briefly.
 
-**The dataframe "county_data" contains socioeconomic demographics data of each of the 3279 counties **
+**The dataframe "county_data" contains socioeconomic demographics data of each of the 3278 counties in the United States**
 
 ## COVID case trend
 
@@ -116,15 +122,7 @@ It is crucial to decide the right granularity for visualization and analysis. We
 
 i) Plot **new** COVID cases in NY, WA and FL by state and by day. Any irregular pattern? What is the biggest problem of using single day data? 
 
-```{r daily new COVID cases}
-names(county_data)[1:10]
-table(county_data$State)
-#county_data %>% 
-  #select(State = "NY")
-```
-
 ii) Create **weekly new** cases per 100k `weekly_case_per100k`. Plot the spaghetti plots of `weekly_case_per100k` by state. Use `TotalPopEst2019` as population.
-
 
 iii) Summarize the COVID case trend among states based on the plot in ii). What could be the possible reasons to explain the variabilities? 
 
@@ -155,7 +153,7 @@ county_data_sub <- county_data %>%
 
 iii) Use LASSO to choose a parsimonious model with all available sensible county-level information. **Force in State** in the process. Why we need to force in State? You may use `lambda.1se` to choose a smaller model. 
 
-iv) Use `Cp` or BIC to fine tune the LASSO model from iii). Again **force in State** in the process. 
+iv) Use `Cp` or BIC to fine tune the LASSO model from iii). Again **force in State** in the process. (You could do backward elimination to avoid using `Cp` or BIC)
 
 v) If necessary, reduce the model from iv) to a final model with all variables being significant at 0.05 level. Are the linear model assumptions all reasonably met?
 
@@ -167,12 +165,32 @@ viii) What else can we do to improve our model? What other important information
 
 ix) (Optional) Would your findings be very different if you had refined the data in some way or imputed the missing values in part ii). Check PCA lecture, section 10 for imputations via `softImpute`. 
 
+# Executive summary 
 
-# Appendix 1: Data description {-}
+Please summarize this project as follows  (no more than one page): 
+
+* Goal of the study
+
+* Data
+  - Source and a brief description of the data
+  - How do you assemble them together (mostly done by our team but you may present them as if you have done so)
+  
+*	Analyses
+  - Methods used
+  
+* Findings
+* Limitations
+
+
+
+
+
+
+# Appendix 1: Data description 
 
 A detailed summary of the variables in each data set follows:
 
-**Infection and fatality data**
+## Infection and fatality data
 
 * date: Date
 * county: County name
@@ -181,7 +199,7 @@ A detailed summary of the variables in each data set follows:
 * cases: Number of cumulative COVID-19 infections
 * deaths: Number of cumulative COVID-19 deaths
 
-**Socioeconomic demographics**
+## Socioeconomic demographics
 
 *Income*: Poverty level and household income 
 
@@ -320,7 +338,9 @@ A detailed summary of the variables in each data set follows:
 * AsianNonHispanicNum2010: Population size Non-Hispanic Asian, 2010    
 * HispanicNum2010: Population size Hispanic, 2010
 
-*County classifications*: Type of county (rural or urban on a rural-urban continuum scale)
+##County classifications
+
+Type of county (rural or urban on a rural-urban continuum scale)
 
 * Type_2015_Recreation_NO: Recreation counties, 2015 edition  
 * Type_2015_Farming_NO: Farming-dependent counties, 2015 edition  
@@ -370,7 +390,7 @@ A detailed summary of the variables in each data set follows:
 * Population_loss_2015_update: Population loss counties, 2015 edition
 * Retirement_Destination_2015_Update: Retirement destination counties, 2015 edition
 
-# Appendix 2: Data cleaning {-}
+# Appendix 2: Data cleaning 
 
 The raw data sets are dirty and need transforming before we can do our EDA.
 It takes time and efforts to clean and merge different data sources so we provide the final output of the cleaned and merged data. The cleaning procedure is as follows. Please read through to understand what is in the cleaned data. We set `eval = data_cleaned` in the following cleaning chunks so that these cleaning chunks will only run if any of `data/covid_county.csv`, `data/covid_rates.csv` or `data/covid_intervention.csv`  does not exist.
