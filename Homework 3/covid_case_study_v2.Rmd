@@ -131,26 +131,9 @@ i) Plot **new** COVID cases in NY, WA and FL by state and by day. Any irregular 
 
 ```{r plot new COVID cases in NY}
 # by state
-covid_rate <- covid_rate %>%
-  arrange(date) %>%
-  group_by(County) %>%
-  mutate(new_cases = cum_cases - lag(cum_cases, default = 0)) %>%
-  ungroup() 
-
-summary(covid_rate$new_cases)
-
-covid_rate %>%
-  filter(new_cases == "-1174054")
-
-covid_rate %>% 
-  filter(County == "Loudon")
-  filter(new_cases < 0)
-
-p <- covid_rate %>%
-  filter(State == "New York") %>%
-  ggplot(aes(x = date, y = new_cases)) +
-  geom_line() +
-  scale_x_date(date_breaks = "2 weeks", date_labels = "%d %b")
+p <- nyc_case %>%
+  ggplot(aes(x = date, y = cases)) +
+  geom_line() 
 p
 
 
