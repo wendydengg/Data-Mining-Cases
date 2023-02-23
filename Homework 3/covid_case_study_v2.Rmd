@@ -129,6 +129,58 @@ It is crucial to decide the right granularity for visualization and analysis. We
 
 i) Plot **new** COVID cases in NY, WA and FL by state and by day. Any irregular pattern? What is the biggest problem of using single day data? 
 
+```{r Clean WA data, eval = data_cleaned}
+# NYC county fips matching table 
+nyc_fips <- data.table(FIPS = c('36005', '36047', '36061', '36081', '36085'),
+                       County = c("BX", "BK", "MN", "QN", "SI"))
+
+# nyc case
+nyc_case <- nyc[,.(date = as.Date(date_of_interest, "%m/%d/%Y"),
+                   BX = BX_CASE_COUNT, 
+                   BK = BK_CASE_COUNT, 
+                   MN = MN_CASE_COUNT, 
+                   QN = QN_CASE_COUNT, 
+                   SI = SI_CASE_COUNT)]
+
+nyc_case %<>% 
+  pivot_longer(cols = BX:SI, 
+               names_to = "County",
+               values_to = "cases") %>%
+  arrange(date) %>%
+  group_by(County) %>%
+  mutate(cum_cases = cumsum(cases))
+
+# nyc death
+nyc_death <- nyc[,.(date = as.Date(date_of_interest, "%m/%d/%Y"),
+                   BX = BX_DEATH_COUNT, 
+                   BK = BK_DEATH_COUNT, 
+                   MN = MN_DEATH_COUNT, 
+                   QN = QN_DEATH_COUNT, 
+                   SI = SI_DEATH_COUNT)]
+
+nyc_death %<>% 
+  pivot_longer(cols = BX:SI, 
+               names_to = "County",
+               values_to = "deaths") %>%
+  arrange(date) %>%
+  group_by(County) %>%
+  mutate(cum_deaths = cumsum(deaths))
+
+nyc_rates <- merge(nyc_case, 
+                   nyc_death,
+                   by = c("date", "County"),
+                   all.x= T)
+
+nyc_rates <- merge(nyc_rates,
+                   nyc_fips,
+                   by = "County")
+
+nyc_rates$State <- "New York"
+nyc_rates %<>% 
+  select(date, FIPS, County, State, cum_cases, cum_deaths) %>%
+  arrange(FIPS, date)
+```
+
 ```{r plot new COVID cases in NY}
 # by state
 p <- nyc_case %>%
