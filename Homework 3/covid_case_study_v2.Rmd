@@ -91,21 +91,28 @@ The cleaning procedure is attached in `Appendix 2: Data cleaning` You may go thr
 
 First read in the data.
 
-```{r}
+```{r read data}
 # county-level socialeconomic information
 county_data <- fread("data/covid_county.csv") 
+str(county_data)
 names(county_data)
-nrow(table(county_data$State)) # outputs 53, includes 50 states and US territories
-table(county_data$State)
-nrow(county_data) # outputs 3279, one of them is US
+skimr::skim(county_data)
+sum(is.na(county_data))
 
-# remove non-counties
-county_data <- county_data %>%
-  filter(FIPS != 0) 
+table(county_data$State)
 
 # county-level COVID case and death
 covid_rate <- fread("data/covid_rates.csv")
+str(covid_rate)
 names(covid_rate)
+sum(is.na(covid_rate))
+
+table(covid_rate$State)
+table(covid_rate$County)
+table(covid_rate$date)
+
+by(covid_rate$cum_cases, covid_rate$State, summary)
+
 # county-level lockdown dates 
 # covid_intervention <- fread("data/covid_intervention.csv")
 ```
@@ -114,7 +121,7 @@ names(covid_rate)
 
 The detailed description of variables is in `Appendix 1: Data description`. Please get familiar with the variables. Summarize the two data briefly.
 
-**The dataframe "county_data" contains socioeconomic demographics data of each of the 3278 counties in the United States**
+**The dataframe "county_data" contains socioeconomic demographics information, in different years, of each of the 3278 counties in the United States, which includes the counties among the 50 states and those in Puerto Rico. The dataframe "covid_rate" contains cumulative statistics for COVID cases and deaths across 397 days (start date: 2020-01-21, end date: 2021-02-20) among the counties.**
 
 ## COVID case trend
 
@@ -122,7 +129,40 @@ It is crucial to decide the right granularity for visualization and analysis. We
 
 i) Plot **new** COVID cases in NY, WA and FL by state and by day. Any irregular pattern? What is the biggest problem of using single day data? 
 
+```{r plot new COVID cases in NY}
+# by state
+covid_rate <- covid_rate %>%
+  arrange(date) %>%
+  group_by(County) %>%
+  mutate(new_cases = cum_cases - lag(cum_cases, default = 0)) %>%
+  ungroup() 
+
+summary(covid_rate$new_cases)
+
+covid_rate %>%
+  filter(new_cases == "-1174054")
+
+covid_rate %>% 
+  filter(County == "Loudon")
+  filter(new_cases < 0)
+
+p <- covid_rate %>%
+  filter(State == "New York") %>%
+  ggplot(aes(x = date, y = new_cases)) +
+  geom_line() +
+  scale_x_date(date_breaks = "2 weeks", date_labels = "%d %b")
+p
+
+
+
+# by day
+```
+
 ii) Create **weekly new** cases per 100k `weekly_case_per100k`. Plot the spaghetti plots of `weekly_case_per100k` by state. Use `TotalPopEst2019` as population.
+
+```{r plot weekly new cases}
+
+```
 
 iii) Summarize the COVID case trend among states based on the plot in ii). What could be the possible reasons to explain the variabilities? 
 
