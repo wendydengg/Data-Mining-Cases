@@ -286,22 +286,6 @@ deaths_map <- plot_usmap(regions = "state", data = covid_rate_subset, values = "
 deaths_map
 
 ```
-```{r}
-library(plotly)
-
-data(canada.cities, package="maps")
-p <- ggplot(canada.cities, aes(long, lat)) +
-        borders(regions="canada", name="borders") +
-        coord_equal() +
-        geom_point(aes(text=name, size=pop), colour="red", alpha=1/2, name="cities")
-
-fig <- ggplotly(p)
-
-fig
-
-
-```
-
 
 ii) (Optional) Use `plotly` to animate the monthly maps in i). Does it reveal any systematic way to capture the dynamic changes among states? (Hints: Follow *Appendix 3: Plotly heatmap::* in Module 6 regularization lecture to plot the heatmap using `plotly`. Use `frame` argument in `add_trace()` for animation. `plotly` only recognizes abbreviation of state names. Use `unique(us_map(regions = "states") %>% select(abbr, full))` to get the abbreviation and merge with the data to get state abbreviation.)
 ```{r plotly, echo = FALSE}
