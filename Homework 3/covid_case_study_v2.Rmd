@@ -1,9 +1,9 @@
 ---
 title: "COVID-19 Case Study"
 author:
-- Group Member 1
-- Group Member 2
-- Group Member 3
+- Wendy Deng
+- Ruolan Li
+- Kira Nightingale
 date: 'Due before midnight, Feb 26'
 output:
   pdf_document:
@@ -91,8 +91,8 @@ The cleaning procedure is attached in `Appendix 2: Data cleaning` You may go thr
 
 First read in the data.
 
-```{r read data}
-# county-level socialeconomic information
+```{r read data, echo=FALSE, results='hide'}
+# county-level socioeconomic information
 county_data <- fread("data/covid_county.csv") 
 str(county_data)
 names(county_data)
@@ -111,7 +111,13 @@ table(covid_rate$State)
 table(covid_rate$County)
 table(covid_rate$date)
 
-by(covid_rate$cum_cases, covid_rate$State, summary)
+by(covid_rate$cum_deaths, covid_rate$State, summary)
+summary(covid_rate$cum_cases)
+
+summary(county_data$PerCapitaInc)
+summary(county_data$TotalPopEst2019)
+summary(county_data$ForeignBornPct)
+summary(county_data$UnempRate2019)
 
 # county-level lockdown dates 
 # covid_intervention <- fread("data/covid_intervention.csv")
@@ -121,7 +127,9 @@ by(covid_rate$cum_cases, covid_rate$State, summary)
 
 The detailed description of variables is in `Appendix 1: Data description`. Please get familiar with the variables. Summarize the two data briefly.
 
-**The dataframe "county_data" contains socioeconomic demographics information, in different years, of each of the 3278 counties in the United States, which includes the counties among the 50 states and those in Puerto Rico. The dataframe "covid_rate" contains cumulative statistics for COVID cases and deaths across 397 days (start date: 2020-01-21, end date: 2021-02-20) among the counties.**
+**The dataframe "county_data" contains socioeconomic and demographic information, in different years, of each of the 3278 counties in the United States, which includes the counties among the 50 states and those in Puerto Rico. While it would not be possible to summarize the entirety of the socioeconomic dataset, a selection of variables are presented herein. The median per capita income across all counties in the US is $26,720, ranging from $5,974-$72,832. The median county population size as of 2019 was 26,700, ranging from 86-328,000,000. The median percentage of residents per country who were not born in the US is 2.8, ranging from 0-53.3%. The median county-level unemployment rate as of 2019 was 3.7%, ranging from 0.7-19.3%.** 
+
+**The dataframe "covid_rate" contains cumulative statistics for COVID cases and deaths across 397 days (start date: 2020-01-21, end date: 2021-02-20) among the counties. The median cumulative cases by county during this time period was 366, ranging from a minimum of 0 at the start of the period to a maximum of 1,179,633 at the end of the period. By scanning the data by state, we can see that individual states experienced varying numbers of COVID cases and deaths.**
 
 ## COVID case trend
 
@@ -129,77 +137,97 @@ It is crucial to decide the right granularity for visualization and analysis. We
 
 i) Plot **new** COVID cases in NY, WA and FL by state and by day. Any irregular pattern? What is the biggest problem of using single day data? 
 
-```{r Clean WA data, eval = data_cleaned}
-# NYC county fips matching table 
-nyc_fips <- data.table(FIPS = c('36005', '36047', '36061', '36081', '36085'),
-                       County = c("BX", "BK", "MN", "QN", "SI"))
+**As we can see in Figure 1, it is nearly impossible to interpret more than a year's worth of data using daily values because there are too many data points. Although we can see slight variations in "clumps" of higher daily rates versus lower daily rates, overall it is not feasible to interpret data at this granularity. We can also see a few apparent outliers, but it is challenging to draw any meaningful conclusions. Additionally, without controlling for the population size of the state, we can't be sure whether the number of new cases is large or small relative to the population.** 
 
-# nyc case
-nyc_case <- nyc[,.(date = as.Date(date_of_interest, "%m/%d/%Y"),
-                   BX = BX_CASE_COUNT, 
-                   BK = BK_CASE_COUNT, 
-                   MN = MN_CASE_COUNT, 
-                   QN = QN_CASE_COUNT, 
-                   SI = SI_CASE_COUNT)]
+**On a more practical note, COVID testing result release practices varied by county which could bias any daily-level results. For example, while most counties collected and processed COVID tests 7 days a week, aggregated results were often only released on business days. This resulted in apparent population-level spikes in new cases on Mondays, when in reality this was due to the fact that test results from Saturday, Sunday, and Monday were all released on Monday.**
 
-nyc_case %<>% 
-  pivot_longer(cols = BX:SI, 
-               names_to = "County",
-               values_to = "cases") %>%
-  arrange(date) %>%
-  group_by(County) %>%
-  mutate(cum_cases = cumsum(cases))
+```{r incidence by day, echo = FALSE}
+#Subset full COVID data to NY, WA, and FL only
+covid_state_subset <- covid_rate %>% filter(State == "New York" | State == "Washington" | State == "Florida")
 
-# nyc death
-nyc_death <- nyc[,.(date = as.Date(date_of_interest, "%m/%d/%Y"),
-                   BX = BX_DEATH_COUNT, 
-                   BK = BK_DEATH_COUNT, 
-                   MN = MN_DEATH_COUNT, 
-                   QN = QN_DEATH_COUNT, 
-                   SI = SI_DEATH_COUNT)]
+#Create new variable so that cumulative cases never decreases
+#Create new variable to indicate new cases by day
+covid_state_subset <- covid_state_subset %>%
+  arrange(State, County, date) %>%
+  group_by(State, County) %>%
+  mutate(cum_interim = ifelse(row_number() == 1, cum_cases, ifelse(cum_cases < lag(cum_cases), lag(cum_cases), cum_cases))) %>%
+  mutate(cum_no_dec = ifelse(row_number() == 1, cum_interim, ifelse(cum_cases < lag(cum_interim), lag(cum_interim), cum_interim)))
 
-nyc_death %<>% 
-  pivot_longer(cols = BX:SI, 
-               names_to = "County",
-               values_to = "deaths") %>%
-  arrange(date) %>%
-  group_by(County) %>%
-  mutate(cum_deaths = cumsum(deaths))
+covid_state_subset <- covid_state_subset %>%
+  arrange(State, County, date) %>%
+  group_by(State, County) %>%
+  mutate(new_cases = ifelse(row_number() == 1, cum_no_dec, cum_no_dec-lag(cum_no_dec))) %>%
+  mutate(new_cases = ifelse(new_cases < 0, 0, new_cases))
 
-nyc_rates <- merge(nyc_case, 
-                   nyc_death,
-                   by = c("date", "County"),
-                   all.x= T)
+#Creating plot by state
+incidence_daily <- ggplot(covid_state_subset, aes(x=date, y=new_cases, color=State)) +
+  geom_line() +
+  labs(title = "Figure 1: ", subtitle = "New COVID-19 Cases Per Day by State", x = "Date", y = "Number of New Cases") +
+  theme_bw()
+incidence_daily
 
-nyc_rates <- merge(nyc_rates,
-                   nyc_fips,
-                   by = "County")
-
-nyc_rates$State <- "New York"
-nyc_rates %<>% 
-  select(date, FIPS, County, State, cum_cases, cum_deaths) %>%
-  arrange(FIPS, date)
 ```
 
-```{r plot new COVID cases in NY}
-# by state
-p <- nyc_case %>%
-  ggplot(aes(x = date, y = cases)) +
-  geom_line() 
-p
-
-
-
-# by day
-```
 
 ii) Create **weekly new** cases per 100k `weekly_case_per100k`. Plot the spaghetti plots of `weekly_case_per100k` by state. Use `TotalPopEst2019` as population.
 
-```{r plot weekly new cases}
+```{r incidence by week, echo = FALSE}
+#Repeating above using full COVID dataset
+covid_rate <- covid_rate %>%
+  arrange(State, County, date) %>%
+  group_by(State, County) %>%
+  mutate(cum_interim = ifelse(row_number() == 1, cum_cases, ifelse(cum_cases < lag(cum_cases), lag(cum_cases), cum_cases))) %>%
+  mutate(cum_no_dec = ifelse(row_number() == 1, cum_interim, ifelse(cum_cases < lag(cum_interim), lag(cum_interim), cum_interim)))
 
+covid_rate <- covid_rate %>%
+  arrange(State, County, date) %>%
+  group_by(State, County) %>%
+  mutate(new_cases = ifelse(row_number() == 1, cum_no_dec, cum_no_dec-lag(cum_no_dec))) %>%
+  mutate(new_cases = ifelse(new_cases < 0, 0, new_cases))
+
+#Creating new variable for weekly cases/100k population
+covid_rate <- covid_rate %>%
+  arrange(State, County, date) %>%
+  group_by(State, County, week) %>%
+  mutate(weekly_case = sum(new_cases), weekly_case_per100k = (weekly_case/TotalPopEst2019)*100000)
+
+incidence_weekly_1 <- ggplot(subset(covid_rate, State %in% c("Alabama", "Arizona", "Arkansas", "California", "Colorado", "Connecticut", "Delaware", "District of Columbia", "Florida", "Georgia", "Idaho", "Illinois")), aes(x=date, y=new_cases, color=State)) +
+  geom_line() +
+  labs(title = "Figure 2a: ", subtitle = "New COVID-19 Cases Per Week by State", x = "Date", y = "Number of New Cases") +
+  facet_wrap(~State) + 
+  theme_bw() +
+  theme(legend.position = "none")
+
+incidence_weekly_2 <- ggplot(subset(covid_rate, State %in% c("Indiana", "Iowa", "Kansas", "Kentucky", "Louisiana", "Maine", "Maryland", "Massachusetts", "Michigan", "Minnesota", "Mississippi", "Missouri")), aes(x=date, y=new_cases, color=State)) +
+  geom_line() +
+  labs(title = "Figure 2b: ", subtitle = "New COVID-19 Cases Per Week by State", x = "Date", y = "Number of New Cases") +
+  facet_wrap(~State) + 
+  theme_bw() +
+  theme(legend.position = "none")
+
+incidence_weekly_3 <- ggplot(subset(covid_rate, State %in% c("Montana", "Nebraska", "Nevada", "New Hampshire", "New Jersey", "New Mexico", "New York", "North Carolina", "North Dakota", "Ohio", "Oklahoma", "Oregon")), aes(x=date, y=new_cases, color=State)) +
+  geom_line() +
+  labs(title = "Figure 2c: ", subtitle = "New COVID-19 Cases Per Week by State", x = "Date", y = "Number of New Cases") +
+  facet_wrap(~State) + 
+  theme_bw() +
+  theme(legend.position = "none")
+
+incidence_weekly_4 <- ggplot(subset(covid_rate, State %in% c("Pennsylvania", "Rhode Island", "South Carolina", "South Dakota", "Tennessee", "Texas", "Utah", "Vermont", "Virginia", "Washington", "West Virginia", "Wisconsin", "Wyoming")), aes(x=date, y=new_cases, color=State)) +
+  geom_line() +
+  labs(title = "Figure 2d: ", subtitle = "New COVID-19 Cases Per Week by State", x = "Date", y = "Number of New Cases") +
+  facet_wrap(~State) + 
+  theme_bw() +
+  theme(legend.position = "none")
+
+incidence_weekly_1
+incidence_weekly_2
+incidence_weekly_3
+incidence_weekly_4
 ```
 
 iii) Summarize the COVID case trend among states based on the plot in ii). What could be the possible reasons to explain the variabilities? 
+
+**We can see in Figures 2a-2d that each state in the US experienced slightly different patterns regarding COVID-19 cases. One of the more noticeable differences is in the timing of case peaks. For example, New York appears to have one of the earliest peaks, perhaps driven by the high population density in New York City (NYC) and presence of three major international airports within NYC limits. In contrast, Pennsylvania's largest peak was not until closer to 2021. It is also evident that despite normalizing COVID-19 cases per 100k population, there are drastic differences in cases by state. It is likely that population density is a major driver of this difference; for example, California has a high number of weekly cases whereas Wyoming has a very low number of cases. Population density cannot explain all of the variation, however, as some states with relatively high density, such as Connecticut and Pennsylvania, have low numbers overall. It is possible that some differences are also driven by state- and county-level policies which restricted the flow of people and therefore the spread of COVID-19.**
 
 iv) (Optional) Use `covid_intervention` to see whether the effectiveness of lockdown in flattening the curve.
 
@@ -207,26 +235,187 @@ iv) (Optional) Use `covid_intervention` to see whether the effectiveness of lock
 
 i) For each month in 2020, plot the monthly deaths per 100k heatmap by state on US map. Use the same color range across months. (Hints: Set `limits` argument in `scale_fill_gradient()` or use `facet_wrap()`; use `lubridate::month()` and `lubridate::year()` to extract month and year from date; use `tidyr::complete(state, month, fill = list(new_case_per100k = NA))` to complete the missing months with no cases.)
 
+```{r monthly deaths map, echo = FALSE, warning=FALSE}
+#Generating variable with monthly deaths
+#Creating revised cumulative deaths variables
+covid_rate <- covid_rate %>%
+  arrange(State, County, date) %>%
+  group_by(State, County) %>%
+  mutate(cum_interim_death = ifelse(row_number() == 1, cum_deaths, ifelse(cum_deaths < lag(cum_deaths), lag(cum_deaths), cum_deaths))) %>%
+  mutate(cum_no_dec_deaths = ifelse(row_number() == 1, cum_interim_death, ifelse(cum_deaths < lag(cum_interim_death), lag(cum_interim_death), cum_interim_death)))
+
+covid_rate <- covid_rate %>%
+  arrange(State, County, date) %>%
+  group_by(State, County) %>%
+  mutate(new_deaths = ifelse(row_number() == 1, cum_no_dec_deaths, cum_no_dec_deaths-lag(cum_no_dec_deaths))) %>%
+  mutate(new_deaths = ifelse(new_deaths < 0, 0, new_deaths))
+
+#Extracting month and year from date field, dropping non-2020 data
+covid_rate_2020 <- covid_rate %>% 
+  mutate(year = year(date), month = month(date)) %>%
+  filter(year==2020)
+
+#Creating new variable for monthly deaths/100k population
+covid_rate_2020 <- covid_rate_2020 %>%
+  arrange(State, County, date) %>%
+  group_by(State, County, month) %>%
+  mutate(monthly_death = sum(new_deaths), monthly_death_per100k = (monthly_death/TotalPopEst2019)*100000)
+
+covid_rate_2020 <- covid_rate_2020 %>%
+  arrange(State, month) %>%
+  group_by(State, month) %>%
+  mutate(monthly_death_pop_state = sum(monthly_death_per100k)) %>%
+  rename(state = State)
+
+covid_rate_subset <- covid_rate_2020 %>%
+  select(state, month, monthly_death_pop_state) %>%
+  distinct(state, .keep_all = TRUE) %>%
+  ungroup() %>%
+  tidyr::complete(state, month)
+
+
+#Generating static map
+max_death_col <- quantile(covid_rate$monthly_death_pop_state, .96, na.rm = T)
+min_death_col <- quantile(covid_rate$monthly_death_pop_state, 0, na.rm = T)
+
+deaths_map <- plot_usmap(regions = "state", data = covid_rate_subset, values = "monthly_death_pop_state", exclude = c("Alaska", "Hawaii")) +
+  scale_fill_distiller(palette = "YlOrBr", direction = 1, name = "COVID Deaths/100,000 population", limits = c(min_death_col, max_death_col), label = scales::comma) +
+  facet_wrap(~month) +
+  labs(title = "Figure 3: ", subtitle = "Monthly Deaths Due to COVID-19 in the Contiguous United States (2020)") +
+    theme(legend.position = "bottom", legend.key.width = unit(1.75, "cm"))
+deaths_map
+
+```
+```{r}
+library(plotly)
+
+data(canada.cities, package="maps")
+p <- ggplot(canada.cities, aes(long, lat)) +
+        borders(regions="canada", name="borders") +
+        coord_equal() +
+        geom_point(aes(text=name, size=pop), colour="red", alpha=1/2, name="cities")
+
+fig <- ggplotly(p)
+
+fig
+
+
+```
+
+
 ii) (Optional) Use `plotly` to animate the monthly maps in i). Does it reveal any systematic way to capture the dynamic changes among states? (Hints: Follow *Appendix 3: Plotly heatmap::* in Module 6 regularization lecture to plot the heatmap using `plotly`. Use `frame` argument in `add_trace()` for animation. `plotly` only recognizes abbreviation of state names. Use `unique(us_map(regions = "states") %>% select(abbr, full))` to get the abbreviation and merge with the data to get state abbreviation.)
+```{r plotly, echo = FALSE}
+#Custom message for plotly. Can't figure out how to incorporate it, though.
+pu_message <- paste0("State ", covid_rate_subset$state,
+                     "<br>Deaths/100,000 population: ", round(covid_rate_subset$monthly_death_pop_state))
+
+#Plotly map
+ggplotly(deaths_map +
+  theme(legend.position = "none"))
+```
+
 
 # COVID factor
 
 We now try to build a good parsimonious model to find possible factors related to death rate on county level. Let us not take time series into account for the moment and use the total number as of *Feb 1, 2021*.
 
 i) Create the response variable `total_death_per100k` as the total of number of COVID deaths per 100k by *Feb 1, 2021*. We suggest to take log transformation as `log_total_death_per100k = log(total_death_per100k + 1)`. Merge `total_death_per100k` to `county_data` for the following analysis.
+```{r total deaths logged and merged, echo=FALSE}
+#Taking observations closest to 2/1/2021
+covid_rate_feb2021 <- covid_rate %>%
+  filter(date < "2021-02-01") %>%
+  arrange(State, County, date) %>%
+  group_by(State, County) %>%
+  filter(date == max(date))
+
+#Generating death/100k and log(death/100k), dropping unneeded variables
+covid_rate_feb2021 <- covid_rate_feb2021 %>%
+  mutate(total_death_per100k = (cum_no_dec_deaths/TotalPopEst2019)*100000, log_total_death_per100k = log(total_death_per100k + 1)) %>%
+  select(FIPS, State, County, log_total_death_per100k)
+
+#Merging deaths with county data
+county_data <- county_data %>% rename(state_abbrev = State)
+covid_county <- full_join(covid_rate_feb2021, county_data, by = c("FIPS", "County"))
+  
+```
+
 
 ii) Select possible variables in `county_data` as covariates. We provide `county_data_sub`, a subset variables from `county_data`, for you to get started. Please add any potential variables as you wish. 
 
     a) Report missing values in your final subset of variables. 
 
+**Our final analysis data set includes the following missing variables:**
+*State: None
+*log_total_death_per100k: 218
+*Deep_Pov_all: 53
+*PovertyAllAgesPct: 133
+*PerCapitaInc: 53
+*UnempRate2019: 54
+*PctEmpFIRE: 54
+*PctEmpConstruction: 54
+*PctEmpTrans: 54
+*PctEmpMining: 54
+*PctEmpTrade: 54
+*PctEmpInformation: 54
+*PctEmpAgriculture: 54
+*PctEmpManufacturing: 54
+*PctEmpServices: 54
+*PopDensity2010: 53
+*TotalOccHU: 54
+*AvgHHSize: 53
+*OwnHomePct: 53
+*Age65AndOlderPct2010: 53
+*TotalPop25Plus: 53
+*Under18Pct2010: 53
+*Ed1LessThanHSPct: 53
+*Ed2HSDiplomaOnlyPct: 53
+*Ed3SomeCollegePct: 53
+*Ed4AssocDegreePct: 53
+*Ed5CollegePlusPct: 53
+*ForeignBornPct: 132
+*Net_International_Migration_Rate_2010_2019: 132
+*NetMigrationRate1019: 132
+*NaturalChangeRate1019: 132
+*TotalPopEst2019: 53
+*WhiteNonHispanicPct2010: 53
+*NativeAmericanNonHispanicPct2010: 53
+*BlackNonHispanicPct2010: 53
+*AsianNonHispanicPct2010: 53
+*HispanicPct2010: 53
+*Type_2015_Update: 183
+*RuralUrbanContinuumCode2013: 104
+*UrbanInfluenceCode2013: 104
+*Hipov: 105
+*Perpov_1980_0711: 183
+*HiCreativeClass2000: 187
+*HiAmenity: 219
+*Retirement_Destination_2015_Update: 183
+
     b) In the following anaylsis, you may ignore the missing values.
 
-```{r}
-county_data_sub <- county_data %>%
-  select(County, State, FIPS, Deep_Pov_All, PovertyAllAgesPct, PerCapitaInc, UnempRate2019, PctEmpFIRE, PctEmpConstruction, PctEmpTrans, PctEmpMining, PctEmpTrade, PctEmpInformation, PctEmpAgriculture, PctEmpManufacturing, PctEmpServices, PopDensity2010, OwnHomePct, Age65AndOlderPct2010, TotalPop25Plus, Under18Pct2010, Ed2HSDiplomaOnlyPct, Ed3SomeCollegePct, Ed4AssocDegreePct, Ed5CollegePlusPct, ForeignBornPct, Net_International_Migration_Rate_2010_2019, NetMigrationRate1019, NaturalChangeRate1019, TotalPopEst2019, WhiteNonHispanicPct2010, NativeAmericanNonHispanicPct2010, BlackNonHispanicPct2010, AsianNonHispanicPct2010, HispanicPct2010, Type_2015_Update, RuralUrbanContinuumCode2013, UrbanInfluenceCode2013, Perpov_1980_0711, HiCreativeClass2000, HiAmenity, Retirement_Destination_2015_Update)
+```{r county data subsetting, echo=FALSE, results='hide'}
+covid_county <- covid_county %>% ungroup()
+covid_county_subset <- covid_county %>%
+  select(log_total_death_per100k, State, Deep_Pov_All, PovertyAllAgesPct, PerCapitaInc, UnempRate2019, PctEmpFIRE, PctEmpConstruction, PctEmpTrans, PctEmpMining, PctEmpTrade, PctEmpInformation, PctEmpAgriculture, PctEmpManufacturing, PctEmpServices, PopDensity2010, TotalOccHU, AvgHHSize, OwnHomePct, Age65AndOlderPct2010, TotalPop25Plus, Under18Pct2010, Ed1LessThanHSPct,  Ed2HSDiplomaOnlyPct, Ed3SomeCollegePct, Ed4AssocDegreePct, Ed5CollegePlusPct, ForeignBornPct, Net_International_Migration_Rate_2010_2019, NetMigrationRate1019, NaturalChangeRate1019, TotalPopEst2019, WhiteNonHispanicPct2010, NativeAmericanNonHispanicPct2010, BlackNonHispanicPct2010, AsianNonHispanicPct2010, HispanicPct2010, Type_2015_Update, RuralUrbanContinuumCode2013, UrbanInfluenceCode2013, Hipov, Perpov_1980_0711, HiCreativeClass2000, HiAmenity, Retirement_Destination_2015_Update)
+
+summary(covid_county_subset)
 ```
 
 iii) Use LASSO to choose a parsimonious model with all available sensible county-level information. **Force in State** in the process. Why we need to force in State? You may use `lambda.1se` to choose a smaller model. 
+```{r lasso, echo=FALSE}
+set.seed(27)
+
+Y <- covid_county_subset[, 1]
+X <- model.matrix(log_total_death_per100k~., data=covid_county_subset)[, -1]
+dim(X)
+dim(Y)
+
+fit.covid.cv <- cv.glmnet(X, Y, alpha=1, nfolds=10, intercept = T,
+                       penalty.factor = c(rep(0, 48), rep(1, 43)))
+plot(fit.covid.cv)
+
+```
+
 
 iv) Use `Cp` or BIC to fine tune the LASSO model from iii). Again **force in State** in the process. (You could do backward elimination to avoid using `Cp` or BIC)
 
