@@ -1,16 +1,11 @@
 ---
-title: "COVID-19 Case Study"
+title: "Homework 3: Case 1 and COVID Case Study"
 author:
 - Wendy Deng
 - Ruolan Li
 - Kira Nightingale
 date: 'Due before midnight, Feb 26'
 output:
-  pdf_document:
-    extra_dependencies: ["dcolumn"]
-    number_sections: yes
-    toc: yes
-    toc_depth: '4'
   html_document:
     code_folding: show
     highlight: haddock
@@ -19,6 +14,11 @@ output:
     toc: yes
     toc_depth: 4
     toc_float: yes
+  pdf_document:
+    extra_dependencies: ["dcolumn"]
+    number_sections: yes
+    toc: yes
+    toc_depth: '4'
   word_document:
     toc: yes
     toc_depth: '4'
@@ -27,7 +27,7 @@ urlcolor: blue
 
 ---
 
-```{r Setup, include=FALSE, results='hide', warning=FALSE}
+```{r Setup, echo=FALSE, results='hide', warning=FALSE}
 knitr::opts_chunk$set(echo = T, fig.width=8, fig.height=4)
 options(scipen = 0, digits = 3)  # controls base R output
 
@@ -36,10 +36,181 @@ if(!require("pacman")) install.packages("pacman")
 
 pacman::p_load(tidyverse, dplyr, ggplot2, ggthemes, data.table, lubridate,
                GGally, RColorBrewer, ggsci, plotROC, usmap,
-               plotly, ggpubr, vistime)
+               plotly, ggpubr, vistime, ISLR, readxl, magrittr, glmnet)
 ```
 
-# Background
+\pagebreak
+
+# Overview
+
+Multiple regression is one of the most popular methods used in statistics as well as in machine learning. We use linear models as a working model for its simplicity and interpretability. It is important that we use domain knowledge as much as we could to determine the form of the response as well as the function format for the factors. Then, when we have many possible features to be included in the working model it is inevitable that we need to choose a best possible model with a sensible criterion. `Cp`, `BIC` and regularizations such as LASSO are introduced. Be aware that if a model selection is done formally or informally, the inferences obtained with the final `lm()` fit may not be valid. Some adjustment will be needed. This last step is beyond the scope of this class. Check the current research line that Linda and collaborators are working on. 
+
+This homework consists of two parts: the first one is an exercise (you will feel it being a toy example after the covid case study) to get familiar with model selection skills such as, `Cp` and `BIC`. The main job is a rather involved case study about devastating covid19 pandemic.  Please read through the case study first.  This project is for sure a great one listed in your CV. 
+
+For covid case study, the major time and effort would be needed in EDA portion.
+
+## Objectives
+
+- Model building process
+
+- Methods
+    - Model selection
+        + All subsets
+        + Forward/Backward
+    - Regularization
+        + LASSO (L1 penalty)
+        + Ridge (L2 penalty)
+        + Elastic net
+- Understand the criteria 
+    - `Cp`
+    - Testing Errors
+    - `BIC` 
+    - `K fold Cross Validation`
+    - `LASSO` 
+- Packages
+    - `lm()`, `Anova`
+    - `regsubsets()`
+    - `glmnet()` & `cv.glmnet()`
+
+# Review materials
+
+- Study lecture: Model selection
+- Study lecture: Regularization
+- Study lecture: Multiple regression
+
+Review the code and concepts covered during lectures: multiple regression, model selection and penalized regression through elastic net. 
+
+# Homework 2, Case study 3: Auto data set  
+
+If you haven't done this as part of the homework 2, please attach it here. 
+
+# Case study 1:  `ISLR::Auto` data
+
+This will be the last part of the Auto data from ISLR. The original data contains 408 observations about cars. It has some similarity as the Cars data that we use in our lectures. To get the data, first install the package `ISLR`. The data set `Auto` should be loaded automatically. We use this case to go through methods learned so far. 
+
+Final modelling question: We want to explore the effects of each feature as best as possible. 
+
+1) Preparing variables: 
+
+a) You may explore the possibility of variable transformations. We normally do not suggest to transform $x$ for the purpose of interpretation. You may consider to transform $y$ to either correct the violation of the linear model assumptions or if you feel a transformation of $y$ makes more sense from some theory. In this case we suggest you to look into `GPM=1/MPG`. Compare residual plots of MPG or GPM as responses and see which one might yield a more satisfactory patterns. 
+```{r data input, echo=FALSE}
+library(ISLR)
+data(Auto)
+```
+
+```{r variable transformations, echo=FALSE}
+library(dplyr)
+#use MPG as response
+Auto <- Auto %>%
+  dplyr::select(-name) %>%
+  mutate(origin = as.factor(origin)) #remove name column and convert origin as categorical variable
+fit_mpg <- lm(mpg ~ ., data = Auto)
+
+
+#use GPM as response
+Auto_gpm <- Auto %>%
+  mutate(gpm = 1/mpg) %>%
+  dplyr::select(-mpg)
+fit_gpm <- lm(gpm ~ ., data = Auto_gpm)
+
+#residual plots
+par(mfrow = c(1,2))
+plot(fit_mpg, 1)
+plot(fit_gpm, 1)
+
+```
+**The residual plots indicate using GPM as response is more appropriate. The residual plot of GPM (on the right) is more close to a horizontal line, which indicates the relationship is more linear. Using GPM as response variable meets the regression assumptions. The residual plot of MPG suggests there may exist non-linear relationship.**
+
+In addition, can you provide some background knowledge to support the notion: it makes more sense to model `GPM`?  
+
+**GPM measures fuel consumed per unit of distance, whereas MPG measures distance per unit of fuel consumed. GPM can reflect the actual difference in fuel consumption conditioning on same miles.**
+
+b) You may also explore by adding interactions and higher order terms. The model(s) should be as *parsimonious* (simple) as possible, unless the gain in accuracy is significant from your point of view. 
+
+```{r check interaction, echo=FALSE}
+fit_gpm1 <- lm(gpm ~ .+horsepower*origin, data = Auto_gpm)
+anova(fit_gpm, fit_gpm1)
+```
+
+**Because origin might affect horsepower, we checked interaction term of origin and horsepower. The p-value of F statistic is 0.3256, therefore, we fail to reject $H_0$, there is no significant difference between the model without interaction term and model with interaction term. That is to say, the interaction of horsepower and origin is not significant, and we do not need to include it in our model.**
+
+c) Use Mallow's $C_p$ or BIC to select the model.
+```{r selection with Cp,  echo=FALSE}
+library(leaps)
+#model building
+fit.exh <- regsubsets(gpm ~ ., data = Auto_gpm, nvmax = 10, method="exhaustive")
+summary(fit.exh) 
+
+#Plot the Cp values
+f.e <- summary(fit.exh)
+f.e$cp
+plot(f.e$cp, xlab="Number of predictors",
+     ylab="Cp", col="red", pch=16, cex =3,
+     main = "Plot 1.1: Cp values")
+
+```
+**By using Mallow’s $C_p$, we can see a model with all 8 variables has the smaller prediction error.**
+
+2) Describe the final model and its accuracy. Include diagnostic plots with particular focus on the model residuals.
+```{r,  echo=FALSE}
+#Final model
+fit.exh.var <- f.e$which
+final_var <- colnames(fit.exh.var)[fit.exh.var[5,]]
+final_var
+Auto_gpm1 <- Auto_gpm %>%
+  mutate(origin2 = if_else(origin == 2, "1","0")) %>%
+  dplyr::select(-origin) #if origin=2, assign it = 1, else = 0
+
+#model summary
+coef(fit.exh,5)
+
+#diagnostic plots 
+plot(f.e$rss, xlab="RSS", pch = 14, col="green", cex=2, main = "Plot 1.2: RSS plot")
+final_fit <- lm(gpm ~ horsepower+weight+acceleration+year+origin2, data = Auto_gpm1)
+plot(final_fit,1, main = "Plot 1.3",adj=0)
+plot(final_fit,2, main = "Plot 1.4",adj=0)
+```
+**Since the $C_p$ values are similar in scale, we choose final model with 5 variables. Small $C_p$ value indicates more accurate model. The final model is:$$gpm = 0.09662+0.0001081*horsepower+0.00001155*weight+0.00033*acceleration-0.001307year-0.00187*origin2$$**
+
+- **From plot 1.2, we can see RSS is pretty small when selecting 5 variables.**
+- **Plot 1.3 and 1.4 indicates the final model meets linearity and homoscedasticity assumption.**  
+  * Summarize the effects found.
+```{r Summarize the effects found}
+summary(final_fit)
+```  
+- **$R^2$ is 0.8835 when selecting 5 variables, which suggests final model fits the data well.**
+- **The p-values of all variables selected are significant. Interpretation of $\hat{\beta_i}$: take horsepower as an example, controlling for other variables, gpm will increase 0.0001081 if there is one unit increase in horsepower.**
+
+  * Predict the `mpg` of a car that is: built in 1983, in the US, red, 180 inches long, 8 cylinders, 350 displacement, 260 as horsepower, and weighs 4,000 pounds. Give a 95% CI.
+```{r predict,  echo=FALSE, results='hide'}
+#car info 
+car_predict <- Auto_gpm1[1,]
+car_predict$gpm = NA
+car_predict$cylinders = 8
+car_predict$displacement = 350
+car_predict$horsepower = 260
+car_predict$weight = 4000
+car_predict$acceleration = mean(Auto_gpm1$acceleration) #no info about acceleration, use mean of acceleration in the whole data to impute missing value
+car_predict$year = 83
+car_predict$origin2 = as.factor(0)
+
+#predict
+car_gpm <- predict(final_fit, car_predict, interval = "confidence", se.fit = TRUE) #predicted gpm
+car_mpg <- 1/car_gpm$fit[1]
+car_mpg_ci <- c(1/car_gpm$fit[3], 1/car_gpm$fit[2]) #reciprocal of gpm ci
+car_mpg
+car_mpg_ci
+```
+**The predicted mpg for this car is 14.8. 95% CI for mpg is (13.6, 16.2).**
+
+  * Any suggestions as to how to improve the quality of the study?
+```{r suggestions,  echo=FALSE}
+dim(Auto_gpm)
+```
+**The sample size of the study is 392. More observations can be collected if possible. Also, the study could include more variables, such as Type of Transmission.**
+
+
+# COVID-19 Case Study: Background
 
 The outbreak of the novel Corona virus disease 2019 (COVID-19) [was declared a public health emergency of international concern by the World Health Organization (WHO) on January 30, 2020](https://www.who.int/dg/speeches/detail/who-director-general-s-statement-on-ihr-emergency-committee-on-novel-coronavirus-(2019-ncov)). Upwards of [755 million cases have been confirmed worldwide, with nearly 6.8 million associated deaths](https://covid19.who.int/) by Feb of 2023. Within the US alone, there have been [over 1.1 million deaths and upwards of 102 million cases reported](https://covid.cdc.gov/covid-data-tracker/#trends_dailytrendscases) by Feb of 2023. Governments around the world have implemented and suggested a number of policies to lessen the spread of the pandemic, including mask-wearing requirements, travel restrictions, business and school closures, and even stay-at-home orders. The global pandemic has impacted the lives of individuals in countless ways, and though many countries have begun vaccinating individuals, the long-term impact of the virus remains unclear.
 
@@ -329,51 +500,53 @@ ii) Select possible variables in `county_data` as covariates. We provide `county
     a) Report missing values in your final subset of variables. 
 
 **Our final analysis data set includes the following missing variables:**
-*State: None
-*log_total_death_per100k: 218
-*Deep_Pov_all: 53
-*PovertyAllAgesPct: 133
-*PerCapitaInc: 53
-*UnempRate2019: 54
-*PctEmpFIRE: 54
-*PctEmpConstruction: 54
-*PctEmpTrans: 54
-*PctEmpMining: 54
-*PctEmpTrade: 54
-*PctEmpInformation: 54
-*PctEmpAgriculture: 54
-*PctEmpManufacturing: 54
-*PctEmpServices: 54
-*PopDensity2010: 53
-*TotalOccHU: 54
-*AvgHHSize: 53
-*OwnHomePct: 53
-*Age65AndOlderPct2010: 53
-*TotalPop25Plus: 53
-*Under18Pct2010: 53
-*Ed1LessThanHSPct: 53
-*Ed2HSDiplomaOnlyPct: 53
-*Ed3SomeCollegePct: 53
-*Ed4AssocDegreePct: 53
-*Ed5CollegePlusPct: 53
-*ForeignBornPct: 132
-*Net_International_Migration_Rate_2010_2019: 132
-*NetMigrationRate1019: 132
-*NaturalChangeRate1019: 132
-*TotalPopEst2019: 53
-*WhiteNonHispanicPct2010: 53
-*NativeAmericanNonHispanicPct2010: 53
-*BlackNonHispanicPct2010: 53
-*AsianNonHispanicPct2010: 53
-*HispanicPct2010: 53
-*Type_2015_Update: 183
-*RuralUrbanContinuumCode2013: 104
-*UrbanInfluenceCode2013: 104
-*Hipov: 105
-*Perpov_1980_0711: 183
-*HiCreativeClass2000: 187
-*HiAmenity: 219
-*Retirement_Destination_2015_Update: 183
+
+* State: None
+* log_total_death_per100k: 218
+* Deep_Pov_all: 53
+* PovertyAllAgesPct: 133
+* PerCapitaInc: 53
+* UnempRate2019: 54
+* PctEmpFIRE: 54
+* PctEmpConstruction: 54
+* PctEmpTrans: 54
+* PctEmpMining: 54
+* PctEmpTrade: 54
+* PctEmpInformation: 54
+* PctEmpAgriculture: 54
+* PctEmpManufacturing: 54
+* PctEmpServices: 54
+* PopDensity2010: 53
+* TotalOccHU: 54
+* AvgHHSize: 53
+* OwnHomePct: 53
+* Age65AndOlderPct2010: 53
+* TotalPop25Plus: 53
+* Under18Pct2010: 53
+* Ed1LessThanHSPct: 53
+* Ed2HSDiplomaOnlyPct: 53
+* Ed3SomeCollegePct: 53
+* Ed4AssocDegreePct: 53
+* Ed5CollegePlusPct: 53
+* ForeignBornPct: 132
+* Net_International_Migration_Rate_2010_2019: 132
+* NetMigrationRate1019: 132
+* NaturalChangeRate1019: 132
+* TotalPopEst2019: 53
+* WhiteNonHispanicPct2010: 53
+* NativeAmericanNonHispanicPct2010: 53
+* BlackNonHispanicPct2010: 53
+* AsianNonHispanicPct2010: 53
+* HispanicPct2010: 53
+* Type_2015_Update: 183
+* RuralUrbanContinuumCode2013: 104
+* UrbanInfluenceCode2013: 104
+* Hipov: 105
+* Perpov_1980_0711: 183
+* HiCreativeClass2000: 187
+* HiAmenity: 219
+* Retirement_Destination_2015_Update: 183
+
 
     b) In the following anaylsis, you may ignore the missing values.
 
@@ -386,10 +559,16 @@ summary(covid_county_subset)
 ```
 
 iii) Use LASSO to choose a parsimonious model with all available sensible county-level information. **Force in State** in the process. Why we need to force in State? You may use `lambda.1se` to choose a smaller model. 
-```{r lasso, echo=FALSE}
-set.seed(27)
 
-Y <- covid_county_subset[, 1]
+**Using a lambda of 0.0055, our final LASSO model includes 79 variables, which includes binary indicators for state. In our LASSO process we needed to force in State because it is a categorical variable requiring N-1 indicator variables. Given that, we don't want the LASSO process to evaluate the coefficients individually, but rather as a group.**
+
+```{r lasso, echo=FALSE, results='hide'}
+set.seed(27875)
+
+#drop NAs
+covid_county_subset <- covid_county_subset[complete.cases(covid_county_subset), ]
+
+Y <- as.matrix(covid_county_subset[, 1])
 X <- model.matrix(log_total_death_per100k~., data=covid_county_subset)[, -1]
 dim(X)
 dim(Y)
@@ -397,15 +576,64 @@ dim(Y)
 fit.covid.cv <- cv.glmnet(X, Y, alpha=1, nfolds=10, intercept = T,
                        penalty.factor = c(rep(0, 48), rep(1, 43)))
 plot(fit.covid.cv)
+names(fit.covid.cv)
+fit.covid.cv$lambda.min
+fit.covid.cv$lambda.1se
 
+#Based on the plot, want to use a lambda around log(-5.5), which = 0.0055. This is between lambda.min and lambda.1se so seems reasonable.
+
+coef.force <- coef(fit.covid.cv, s=0.0055)
+var.force <- coef.force@Dimnames[[1]][coef.force@i + 1][-1]
+var.force
+
+covid_final_subset <-  covid_county_subset[,c("log_total_death_per100k", "State", "PovertyAllAgesPct", "PerCapitaInc", "UnempRate2019", "PctEmpFIRE", "PctEmpConstruction", "PctEmpMining", "PctEmpTrade", "PctEmpInformation", "PctEmpAgriculture", "PctEmpManufacturing", "PctEmpServices", "PopDensity2010", "AvgHHSize", "Age65AndOlderPct2010", "TotalPop25Plus", "Under18Pct2010", "Ed1LessThanHSPct", "Ed3SomeCollegePct", "Ed5CollegePlusPct", "ForeignBornPct", "NetMigrationRate1019", "NaturalChangeRate1019", "WhiteNonHispanicPct2010", "NativeAmericanNonHispanicPct2010", "AsianNonHispanicPct2010", "HispanicPct2010", "Type_2015_Update", "RuralUrbanContinuumCode2013", "Perpov_1980_0711", "HiCreativeClass2000", "HiAmenity")]
+
+```
+
+```{r lasso model, echo=FALSE}
+fit.covid.lm <- lm(log_total_death_per100k ~., data=covid_final_subset)
+summary(fit.covid.lm) 
 ```
 
 
 iv) Use `Cp` or BIC to fine tune the LASSO model from iii). Again **force in State** in the process. (You could do backward elimination to avoid using `Cp` or BIC)
 
+**Further reducing the model, we now have 60 variables included in the model, including binary indicators for state. All of the variables (excluding some of the individual state indicator variables).**
+
+```{r fine tune lasso, echo=FALSE, results=FALSE}
+fit.final.1 <- regsubsets(log_total_death_per100k ~., nvmax = 80, force.in = c(2:48), method = "backward", covid_final_subset)
+plot(summary(fit.final.1)$cp)  
+
+fit.final.1.s <- summary(fit.final.1)
+opt.size <- 12
+final.var.1 <- fit.final.1.s$which
+final.var <- colnames(final.var.1)[final.var.1[opt.size, ]][-1]
+
+#Subsetting the data again with reduced variables
+covid_final_subset_2 <- covid_final_subset[,c("log_total_death_per100k", "State", "PovertyAllAgesPct", "UnempRate2019", "PctEmpConstruction", "PctEmpAgriculture", "Age65AndOlderPct2010", "Under18Pct2010", "Ed3SomeCollegePct", "Ed5CollegePlusPct", "NetMigrationRate1019", "NaturalChangeRate1019", "HispanicPct2010", "RuralUrbanContinuumCode2013")]
+```
+
+```{r reduced lasso, echo=FALSE}
+#Re-running the model with reduced number of parameters
+fit.covid.lm.reduced_cp <- lm(log_total_death_per100k ~., data=covid_final_subset_2)
+summary(fit.covid.lm.reduced_cp)
+```
+
+
 v) If necessary, reduce the model from iv) to a final model with all variables being significant at 0.05 level. Are the linear model assumptions all reasonably met?
 
+**Based on the residual plot and Q-Q plot, it is questionable whether we can consider the assumptions for a linear model to be met. While the residual plot appears to have a slight cone-shaped pattern, we can probably say that homoscedasticity is reasonable met. The Q-Q plot, however shows a fairly drastic departure from normality, indicating that we may need to transform some of our variables to better meet this assumption.**
+
+```{r assumptions, echo=FALSE, warning=FALSE}
+par(mfrow=c(1,2))
+plot(fit.covid.lm.reduced_cp, 1)
+plot(fit.covid.lm.reduced_cp, 2)
+```
+
+
 vi) It has been shown that COVID affects elderly the most. It is also claimed that the COVID death rate among African Americans and Latinos is higher. Does your analysis support these arguments?
+
+**Our final model did not include the percentage of Black/African American individuals as a predictor and we are therefore unable to determine the role this plays in COVID-19 deaths. We can see in our model that for every percentage increase in the percentage of Hispanic residents, counties would experience an approximately 0.9% increase in COVID-19 deaths. Similarly, for every percentage increase in the percentage of residents 65 and older, counties would experience an approximately 4.4% increase in COVID-19 deaths. In both of these cases, we can say that our analysis supports the argument that the elderly and Hispanic individuals have been disproportionatly impacted by COVID.**
 
 vii) Based on your final model, summarize your findings. In particular, summarize the state effect controlling for others. Provide intervention recommendations to policy makers to reduce COVID death rate.
 
