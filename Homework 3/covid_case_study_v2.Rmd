@@ -637,7 +637,11 @@ vi) It has been shown that COVID affects elderly the most. It is also claimed th
 
 vii) Based on your final model, summarize your findings. In particular, summarize the state effect controlling for others. Provide intervention recommendations to policy makers to reduce COVID death rate.
 
+**Based on our final model, we found that some states contribute more to COVID-19 death rate than others. We also found that the net migration and natural population change rates of the states from 2010 to 2019 contribute negatively to COVID-19 death rate, meaning that the lack of state policies that control people's movement can possibly reduce COVID-19 death rate.**
+
 viii) What else can we do to improve our model? What other important information we may have missed? 
+
+**We could improve our model**
 
 ix) (Optional) Would your findings be very different if you had refined the data in some way or imputed the missing values in part ii). Check PCA lecture, section 10 for imputations via `softImpute`. 
 
@@ -646,9 +650,11 @@ ix) (Optional) Would your findings be very different if you had refined the data
 Please summarize this project as follows  (no more than one page): 
 
 * Goal of the study
+**The goal of this COVID study is to investigate possible factors that relate to death rate on a county level and determine the ones that are most significant. **
 
 * Data
   - Source and a brief description of the data
+  **Our data is gathered**
   - How do you assemble them together (mostly done by our team but you may present them as if you have done so)
   
 *	Analyses
