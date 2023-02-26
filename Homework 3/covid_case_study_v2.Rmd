@@ -30,7 +30,7 @@ editor_options:
 
 ------------------------------------------------------------------------
 
-```{r Setup, echo=FALSE, results='hide', warning=FALSE}
+```{r Setup, echo=FALSE, results='hide', warning=FALSE, message=FALSE}
 knitr::opts_chunk$set(echo = T, fig.width=8, fig.height=4)
 options(scipen = 0, digits = 3)  # controls base R output
 
@@ -39,7 +39,7 @@ if(!require("pacman")) install.packages("pacman")
 
 pacman::p_load(tidyverse, dplyr, ggplot2, ggthemes, data.table, lubridate,
                GGally, RColorBrewer, ggsci, plotROC, usmap,
-               plotly, ggpubr, vistime, ISLR, readxl, magrittr, glmnet)
+               plotly, ggpubr, vistime, ISLR, readxl, magrittr, glmnet, leaps)
 ```
 
 \pagebreak
@@ -110,8 +110,7 @@ net.
 
 # Homework 2, Case study 3: Auto data set
 
-If you haven't done this as part of the homework 2, please attach it
-here.
+**This case was provided in our Homework 2 submission.**
 
 # Case study 1: `ISLR::Auto` data
 
@@ -914,74 +913,39 @@ vi) It has been shown that COVID affects elderly the most. It is also
     claimed that the COVID death rate among African Americans and
     Latinos is higher. Does your analysis support these arguments?
 
-**Our final model did not include the percentage of Black/African
-American individuals as a predictor and we are therefore unable to
-determine the role this plays in COVID-19 deaths. We can see in our
-model that for every percentage increase in the percentage of Hispanic
-residents, counties would experience an approximately 0.9% increase in
-COVID-19 deaths. Similarly, for every percentage increase in the
-percentage of residents 65 and older, counties would experience an
-approximately 4.4% increase in COVID-19 deaths. In both of these cases,
-we can say that our analysis supports the argument that the elderly and
-Hispanic individuals have been disproportionately impacted by COVID.**
+**Our final model did not include the percentage of Black/African American individuals as a predictor and we are therefore unable to determine the role this plays in COVID-19 deaths. However, in many instances, race is a proxy for other socioeconomic factors, and in this case we may have captured some of the racial disparities through the inclusion of poverty, education, and urbanicity in our model. We can see in our model that for every percentage increase in the percentage of Hispanic residents, counties would experience an approximately 0.9% increase in COVID-19 deaths. Similarly, for every percentage increase in the percentage of residents 65 and older, counties would experience an approximately 4.4% increase in COVID-19 deaths. In both of these cases, we can say that our analysis supports the argument that the elderly and Hispanic individuals have been disproportionately impacted by COVID.**
 
 vii) Based on your final model, summarize your findings. In particular,
      summarize the state effect controlling for others. Provide
      intervention recommendations to policy makers to reduce COVID death
      rate.
 
-**Based on our final model, we found that some states contribute more to
-COVID-19 death rate than others. We also found that the net migration
-and natural population change rates of the states from 2010 to 2019
-contribute negatively to COVID-19 death rate, meaning that the lack of
-state policies that restrict people's movement can possibly reduce
-COVID-19 death rate.**
+**Based on our final model, we found that controlling for other important factors, some states experience greater deaths/100,000K population that others. Our model compares given states to the reference state of Alabama. Interestingly, while some states have significantly different COVID-19 mortality rates after controlling for other factors, other states are not significantly different, implying that for some states, sociodemographic factors are more important than other state-level factors which are captured by the state variable. We also found that the net migration and natural population change rates of the states from 2010 to 2019 contribute negatively to COVID-19 death rate (i.e., are associated with fewer deaths). When the natural population change rate increases (meaning more individuals are being born than dying), the number of COVID deaths decreases. This could be related to the fact that the elderly are at higher risk of dying than younger individuals, so the younger the population is (which can be impacted by the number of babies being born), the fewer COVID deaths there are. Perhaps less intuitively, we found that net migration rate was negatively associated with COVID deaths, meaning that the larger number of people entering a state, the fewer COVID deaths. Again, counter-intuitively, this may suggest that eliminating state policies that restrict people's movement can possibly reduce COVID-19 death rate. Finally, our model indicates that higher percentages of residents with higher education is associated with decreased COVID-19 deaths; this could point to yet another motivation for government-level interventions that improve public education and make higher education more affordable.**
 
 viii) What else can we do to improve our model? What other important
       information we may have missed?
 
-**We could improve our model by including factors concerning the outdoor
-environment and lifestyle of people in the counties, such as level of
-air pollution and geographical landscape. This is because the county
-classification information that we have is not enough to infer about
-general lifestyle of the population at the county, which could
-contribute to COVID case count and thus COVID death rate. We could also 
-consider the quality of clinical care at each county, which could directly impact the COVID death rate.**
+**We could improve our model by including factors concerning the outdoor environment and lifestyle of people in the counties, such as level of air pollution and geographical landscape. This is because the county classification information that we have is not enough to infer about general lifestyle of the population at the county, which could contribute to COVID case count and thus COVID death rate. During the period captured by this data, COVID vaccines were not yet readily available to the general population. However, models with more recent data should incorporate vaccination percentages as vaccination has been shown to reduce the severity of illness. We could also consider the quality of clinical care at each county, which could directly impact the COVID death rate. In particular, factors which may be associated with COVID-19 survival is access to testing (to ensure early treatment), nurse to patient ratio, and availability of hospital beds and intensive interventions such as ventilators.**
 
-ix) (Optional) Would your findings be very different if you had refined
-    the data in some way or imputed the missing values in part ii).
-    Check PCA lecture, section 10 for imputations via `softImpute`.
+ix) (Optional) Would your findings be very different if you had refined the data in some way or imputed the missing values in part ii). Check PCA lecture, section 10 for imputations via `softImpute`.
+
+**It is possible that our results may have been different had we imputed missing values rather than dropping cases with missing data. However, we had minimal missing data and only ended up dropping 268 observations, or 8% of the total data. In general, it's considered cause for alarm if there is more than 10% missingness. With that said, it is always important to consider WHY some data points might be missing, because even small amounts of missing data could bias your results if the missingness is informative.**
 
 # Executive summary
 
 Please summarize this project as follows (no more than one page):
 
-**The goal of this COVID study is to investigate possible factors that
-relate to death rate on a county level and determine the ones that are
-most significant.**
+**The goal of this COVID study is to investigate possible factors that relate to death rate on a county level and determine the ones that are most significant.**
 
-**Our data is gathered from different sources including USDA and The New
-York Times. The first source contains socioeconomic and demographics
-information across US counties, which was downloaded directly from their
-website. The second source contains cumulative statistics for COVID
-cases and deaths across 397 days among the counties, which was shared
-and downloaded from their GitHub page.**
+**Our data was gathered from different sources including the US Department of Agriculture (USDA) and The New York Times (NYTimes). The first source contains socioeconomic and demographic information from all US counties, and was downloaded directly from the USDA website. The second source contains cumulative statistics for COVID cases and deaths across 397 days among the counties, which was shared and downloaded from NYTimes GitHub page.**
 
-**We assembled the data sets by extracting only the relevant information
-from cumulative COVID statistics such as number of cases and deaths and
-considering only the counties in continental US. We also cleaned the
-data sets by setting NA values to 0 because they are still relevant to
-our analysis and NA values are more difficult to work with, and we also
-reformatted the dates by weeks instead of days because weekly data takes
-into account the variability of release dates for COVID case and death
-rates throughout the week. Finally, we merged the two data sets together
-by FIPS.**
+**Data preparation was performed by an experienced data management team using R. First, relevant data points were extracted from the datasets and variables were re-formatted to ensure that formats matched between data sources. Missing values in the COVID dataset was assumed to correspond to counties with no confirmed cases/deaths, and missing values were therefore replaced with "0." The data was then cleaned to ensure that the number of cumulative cases remained the same or increased over time, and never decreased. Finally, the two datasets were merged using the identifying FIPS codes.**
 
-**We used LASSO to choose a parsimonious model with all available sensible county-level information. Our final LASSO model includes 79 variables, including a binary indicator for State. Using backward elimination in "regsubsets", we reduced our LASSO model to 60 variables that contribute to COVID death rate the most.**
+**Analysis began with descriptive statistics and visualization of the data through the creation of case and fatality heatmaps by state. The preliminary analysis indicated clear differences in both case and fatality rates by state, and we therefore determined that state was an important factor which should be included in all final models. We then performed LASSO to choose a parsimonious model with all available sensible county-level information. Lambda was set at 0.0055, which was determined based on the results of k-fold cross-validation. The final variables were selected through fine-tuning of the model using Mallow's Cp. All variables found to be significant after application of Mallow's Cp were then used to model a linear regression with log(deaths/100,000K + 1) as the outcome. This final model consisted of 60 variables, including 48 indicator variables for state plus percentage of residents living below the poverty line, unemployment rate as of 2019, percent of employees working in construction, percent of employees working in agriculture, percent of residents aged 65 or older, percent of residents achieving some college or advanced degrees, the net migration change, natural change rate, percent of residents identifying as Hispanic, and the rural urban continuum code as of 2013.**
 
-**Based on our final model, we found that the net migration and natural population change rates of the states from 2010 to 2019 contribute negatively to COVID-19 death rate, meaning that the lack of state policies that restrict people's movement can possibly reduce COVID-19 death rate. On top of that, some of the variables that contribute positively to COVID death rate include the proportion of Hispanic residents in the area and those who are of age 65 or higher, supporting the argument that the Hispanic and elderly populations are disproportionately affected by COVID.**
+**Based on our final model, we found that the net migration and natural population change rates of the states from 2010 to 2019 contribute negatively to COVID-19 death rate, perhaps counter-intuitively suggesting that the states which did not restrict people's movement had lower COVID-19 death rates. It was also noted that for each percentage increase of residents working in construction and agriculture, COVID death rates were 0.048/100,000K and 0.037/100,000K lower, respectively. This is possibly due to the outdoor nature of these professions and the fact that COVID-19 spreads less easily when people are spread apart and outdoors. Finally, we found that states with higher levels of poverty experiences greater COVID deaths, as did states with higher percentages of elderly and Hispanic individuals. Even after accounting for these sociodemographic differences, some states experienced significantly different death rates than others, indicating there are additional factors which impact COVID death rates which were not captured in our model.**
 
-**However, there are a few more factors which we could consider to improve our model. For example, factors that concern the outdoor environment such as level of air pollution, lifestyle of people in the counties, and quality of clinical care could be used to explain the disproportionate COVID death rate trend among different age and racial groups in our data.**
+**This study has several strengths. First, it incorporates a vast amount of data using well-respected and validated, encompassing all counties in the continental US. We also leveraged state-of-the-art analytic methods to generate the most impactful and parsimonious model. It is, however, also subject to some limitations. There are a few additional factors which we could consider to improve our model. For example, factors that concern the outdoor environment such as level of air pollution, lifestyle of people in the counties, and quality of clinical care could be used to explain the disproportionate COVID death rate trend among different age and racial groups in our data. This analysis also represents a cross-sectional effect rather than a temporal one. Finally, in applying county-level data we are assuming that this data is representative of any given individual in the county, an assumption known as the ecological fallacy, which may impact our results should that assumption not be met.**
 
 # Appendix 1: Data description
 
