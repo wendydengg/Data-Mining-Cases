@@ -126,9 +126,8 @@ as best as possible.
 
 1)  Preparing variables:
 
-```{=html}
 <!-- -->
-```
+
 a)  You may explore the possibility of variable transformations. We
     normally do not suggest to transform $x$ for the purpose of
     interpretation. You may consider to transform $y$ to either correct
@@ -924,7 +923,7 @@ COVID-19 deaths. Similarly, for every percentage increase in the
 percentage of residents 65 and older, counties would experience an
 approximately 4.4% increase in COVID-19 deaths. In both of these cases,
 we can say that our analysis supports the argument that the elderly and
-Hispanic individuals have been disproportionatly impacted by COVID.**
+Hispanic individuals have been disproportionately impacted by COVID.**
 
 vii) Based on your final model, summarize your findings. In particular,
      summarize the state effect controlling for others. Provide
@@ -946,7 +945,8 @@ environment and lifestyle of people in the counties, such as level of
 air pollution and geographical landscape. This is because the county
 classification information that we have is not enough to infer about
 general lifestyle of the population at the county, which could
-contribute to COVID case count and thus COVID death rate.**
+contribute to COVID case count and thus COVID death rate. We could also 
+consider the quality of clinical care at each county, which could directly impact the COVID death rate.**
 
 ix) (Optional) Would your findings be very different if you had refined
     the data in some way or imputed the missing values in part ii).
@@ -956,19 +956,32 @@ ix) (Optional) Would your findings be very different if you had refined
 
 Please summarize this project as follows (no more than one page):
 
-**The goal of this COVID study is to investigate possible factors that relate to death rate on a county level and determine the ones that are most significant.**
+**The goal of this COVID study is to investigate possible factors that
+relate to death rate on a county level and determine the ones that are
+most significant.**
 
-**Our data is gathered from different sources including USDA and The New York Times. The first source contains socioeconomic and demographics information across US counties, which was downloaded directly from their website. The second source contains cumulative statistics for COVID cases and deaths across 397 days among the counties, which was shared and downloaded from their GitHub page.**
+**Our data is gathered from different sources including USDA and The New
+York Times. The first source contains socioeconomic and demographics
+information across US counties, which was downloaded directly from their
+website. The second source contains cumulative statistics for COVID
+cases and deaths across 397 days among the counties, which was shared
+and downloaded from their GitHub page.**
 
-**We assembled the data sets by extracting only the relevant information from cumulative COVID statistics such as number of cases and deaths and considering only the counties in continental US. We also cleaned the data sets by setting NA values to 0 because they are still relevant to our analysis and NA values are more difficult to work with, and we also reformatted the dates by weeks instead of days because weekly data takes into account the variability of release dates for COVID case and death rates throughout the week. Finally, we merged the two data sets together by FIPS.**
+**We assembled the data sets by extracting only the relevant information
+from cumulative COVID statistics such as number of cases and deaths and
+considering only the counties in continental US. We also cleaned the
+data sets by setting NA values to 0 because they are still relevant to
+our analysis and NA values are more difficult to work with, and we also
+reformatted the dates by weeks instead of days because weekly data takes
+into account the variability of release dates for COVID case and death
+rates throughout the week. Finally, we merged the two data sets together
+by FIPS.**
 
--   Methods used
+**We used LASSO to choose a parsimonious model with all available sensible county-level information. Our final LASSO model includes 79 variables, including a binary indicator for State. Using backward elimination in "regsubsets", we reduced our LASSO model to 60 variables that contribute to COVID death rate the most.**
 
-**We used**
+**Based on our final model, we found that the net migration and natural population change rates of the states from 2010 to 2019 contribute negatively to COVID-19 death rate, meaning that the lack of state policies that restrict people's movement can possibly reduce COVID-19 death rate. On top of that, some of the variables that contribute positively to COVID death rate include the proportion of Hispanic residents in the area and those who are of age 65 or higher, supporting the argument that the Hispanic and elderly populations are disproportionately affected by COVID.**
 
--   Findings
-
--   Limitations
+**However, there are a few more factors which we could consider to improve our model. For example, factors that concern the outdoor environment such as level of air pollution, lifestyle of people in the counties, and quality of clinical care could be used to explain the disproportionate COVID death rate trend among different age and racial groups in our data.**
 
 # Appendix 1: Data description
 
