@@ -104,7 +104,7 @@ To keep our answers consistent, use a subset of the data, and exclude anyone wit
 ```{r data preparation, include=F}
 # Notice that we hide the code and the results here
 # Using `include=F` in the chunk declaration. 
-hd_data <- read.csv("Framingham.dat")
+hd_data <- read.csv("/Users/ruolanli/Desktop/notes/data mining/Module_7_Logistic_Reg_Classification/data/Framingham.dat")
 str(hd_data) 
 
 ### Renames, setting the variables with correct natures...
@@ -147,12 +147,42 @@ hd_data.f[indx, ]
 Conceptual questions to understand the building blocks of logistic regression. All the codes in this part should be hidden. We will use a small subset to run a logistic regression of `HD` vs. `SBP`. 
 
 i. Take a random subsample of size 5 from `hd_data_f` which only includes `HD` and `SBP`. Also set  `set.seed(471)`. List the five observations neatly below. No code should be shown here.
+```{r random sample, results = T}
+library(dplyr)
+set.seed(471)
+sample_df <- hd_data.f[sample(nrow(hd_data.f), 5), ]
+sample_df <- sample_df %>%
+  select(HD, SBP)
+sample_df
+```
 
 ii. Write down the likelihood function using the five observations above.
+**The likelihood function:**
+$$
+\begin{split}
+L(\beta_0,\beta_1 \vert {\text Data}) 
+&= P(HD=1|SBP=140) \times P(HD=0|SBP=110) \times \ldots P(HD=0|SBP=122)\\  
+&=\frac{e^{\beta_0+140\beta_1}}{1+e^{\beta_0+140\beta_1}} \times \frac{1}{1+e^{\beta_0+110\beta_1}} \times \frac{e^{\beta_0+150\beta_1}}{1+e^{\beta_0+150\beta_1}} \times \frac{e^{\beta_0+260\beta_1}}{1+e^{\beta_0+260\beta_1}} \times \frac{1}{1+e^{\beta_0+122\beta_1}}
+\end{split} 
+$$
 
 iii. Find the MLE based on this subset using glm(). Report the estimated logit function of `SBP` and the probability of `HD`=1. Briefly explain how the MLE are obtained based on ii. above.
+```{r MLE, echo=T, results=T}
+subset_fit <- glm(HD ~ SBP, data = sample_df, family =  "binomial")
+summary(subset_fit)
+```
+- **Estimated logit function:**
+$$logit(P(HD=1|SBP))=-334.96+2.56SBP$$
+- **Probability of HD=1:**
+$$P(HD=1|SBP) = \frac{e^{-334.96+2.56SBP}}{1+e^{-334.96+2.56SBP}}$$
+- **After we obtain the likelihood function in ii., we take the log of the likelihood function and then estimate the $\beta_0$ and $\beta_1$ by maximizing the log likelihood function. To be more specific, we take the first derivative of log likelihood function and set it equal 0. Then we should also take second derivative to check maximum.**
 
 iv. Evaluate the probability of Liz having heart disease. 
+```{r predict in subset fit model, echo=T, results=T}
+liz_prob <- predict(subset_fit, hd_data.new, type="response")
+liz_prob
+```
+**The probability of Liz having heart disease is close to 0.**
 
 ### Identify important risk factors for `Heart.Disease.`
 
@@ -167,33 +197,124 @@ summary(fit1.1)
 ```
 
 i. Which single variable would be the most important to add?  Add it to your model, and call the new fit `fit2`.  
+```{r add variable, echo=T, results=T}
+# test p-value adding 
+full_fit <- glm(HD ~ ., data = hd_data.f, family = "binomial")
+Anova(full_fit)
+
+# alternative: use forward selection
+fit.forward <- regsubsets(HD ~., hd_data.f , nvmax=25, method="forward")
+summary(fit.forward)
+
+```
+
 
 We will pick up the variable either with highest $|z|$ value, or smallest $p$ value. Report the summary of your `fit2` Note: One way to keep your output neat, we will suggest you using `xtable`. And here is the summary report looks like.
 ```{r the most important addition, results='asis', comment="   "}
-## How to control the summary(fit2) output to cut some junk?
-## We could use packages: xtable or broom. 
-## Assume the fit2 is obtained by SBP + AGE
 library(xtable)
 options(xtable.comment = FALSE)
-fit2 <- glm(HD~SBP + AGE, hd_data.f, family=binomial)
+fit2 <- glm(HD ~ SBP + SEX, data = hd_data.f, family = "binomial")
 xtable(fit2)
 ```
+**According to the p-value and forward selection, sex is the most important variable, therefore, we added sex variable to fit2.**
 
 ii. Is the residual deviance of `fit2` always smaller than that of `fit1`? Why or why not?
-  
+**Yes. Smaller residual deviance indicates a better fit. Adding one variable makes the model fit the data better. Thus,the residual deviance of fit2 is always smaller than that of fit1. **  
+
 iii. Perform both the Wald test and the Likelihood ratio tests (Chi-Squared) to see if the added variable is significant at the .01 level.  What are the p-values from each test? Are they the same? 
+```{r Test for coefficient, echo=T, results=T}
+# wald test calculated by hand
+fit2_summary <- summary(fit2)
+fit2_summary$coefficients
+beta2 <- fit2_summary$coefficients[3,1]
+se_beta2 <- fit2_summary$coefficients[3,2]
+wald_test <- beta2/se_beta2
+wald_pval <- 2*pnorm(wald_test, lower.tail = FALSE)
+wald_pval
+
+# LRT
+Anova(fit2)
+lrt_pval <- Anova(fit2)[2,3]
+lrt_pval
+```
+**The p-value for coefficient of variable sex is 1.02e-10 in wald test, and the p-value is 3.83e-11 in likelihood ratio test. Both p-values indicate the added variable is significant at the .01 level. But the p-values obtained from two tests are different.**
 
 ###  Model building
 
 Start with all variables. Our goal is to fit a well-fitting model, that is still small and easy to interpret (parsimonious).
 
 i. Use backward selection method. Only keep variables whose coefficients are significantly different from 0 at .05 level. Kick out the variable with the largest p-value first, and then re-fit the model to see if there are other variables you want to kick out.
+```{r backward selection, results = T}
+# first fit full model
+fit3 <- glm(HD ~ ., hd_data.f, family = "binomial")
+Anova(fit3)
+
+# kick DBP out
+fit3.1 <- update(fit3, .~. -DBP)
+Anova(fit3.1)
+
+# kick FRW out
+fit3.2 <- update(fit3.1, .~. -FRW)
+Anova(fit3.2)
+
+# kick CIG out
+fit3.3 <- update(fit3.2, .~. -CIG)
+Anova(fit3.3)
+```
+**In the final model using backward selection method, we keep AGE, SEX, SBP and CHOL as variables. **
 
 ii. Use AIC as the criterion for model selection. Find a model with small AIC through exhaustive search. Does exhaustive search  guarantee that the p-values for all the remaining variables are less than .05? Is our final model here the same as the model from backwards elimination? 
+```{r AIC, echo=T, results=T}
+# Get the design matrix without 1's and HD
+xy_design <- model.matrix(HD ~. + 0, hd_data.f)
+
+# Attach HD as the last column
+xy <- data.frame(xy_design, hd_data.f$HD)
+
+# model selection
+fit.all <- bestglm(xy, family = binomial, method = "exhaustive", IC="AIC", nvmax = 10)
+fit.all$BestModels
+
+# check significance for each variable
+aic_fit <- glm(HD~AGE+SEX+SBP+CHOL+FRW+CIG, family=binomial, data=hd_data.f)
+Anova(aic_fit)
+
+# eliminate FRW
+aic_fit1 <- update(aic_fit, .~. -FRW)
+summary(aic_fit1)
+
+# eliminate CIG
+aic_fit_final <- update(aic_fit1, .~. -CIG)
+summary(aic_fit_final)
+```
+**Exhaustive search can not guarantee that the p-values for all the remaining variables are less than .05. After kicking out the variables that are not significant, the final model includes AGE, SEX, SBP and CHOL. The final model here is the same as the model from backwards elimination.**
 
 iii. Use the model chosen from part ii. as the final model. Write a brief summary to describe important factors relating to Heart Diseases (i.e. the relationships between those variables in the model and heart disease). Give a definition of “important factors”. 
+```{r results='asis'}
+xtable(aic_fit_final)
+```
+
+```{r OR, echo=T, results=T}
+exp(coef(aic_fit_final))
+```
+
+**Summary** \par
+- **The final model is:**
+$$logit(P(HD=1|SBP))=-8.40872+0.05664AGE+0.98987SEX+0.01696SBP+0.00448CHOL$$
+- **Interpretation: ** \par
+1) age: The log odds of heart disease increases 0.05664 for one unit increase in age controlling for other variables. In terms of odds ration, when age increases 1 unit, the odds ratio for age is 1.06. This means the odds of heart disease increase by 1.06 for one unit increase in age controlling for other variables. \par
+2) sex: The log odds of heart disease increases 0.98987 if the patient is male controlling for other variables. In terms of odds ration, when sex is male, the odds ratio for age is 2.69. This means the odds of heart disease increase by 2.69 if the patient is male controlling for other variables.\par
+3) sbp: The log odds of heart disease increases 0.01696 for one unit increase in sbp controlling for other variables. In terms of odds ration, when sbp increases 1 unit, the odds ratio for sbp is 1.017. This means the odds of heart disease increase by 1.017 for one unit increase in sbp controlling for other variables. \par
+3) chol: The log odds of heart disease increases 0.00448 for one unit increase in chol controlling for other variables. In terms of odds ration, when chol increases 1 unit, the odds ratio for chol is 1.004. This means the odds of heart disease increase by 1.004 for one unit increase in chol controlling for other variables. \par
+- **Definition of “important factors”:**
+We first found a model with smallest AIC through exhaustive search, indicating a better fit of the model to the data. Then we kicked out the variables that are not significant in this model and got the final model. The coefficients of the variables in the final model are significantly different from 0 at .05 level, indicating the association between the variable and heart disease is significant controlling for other variables.
 
 iv. What is the probability that Liz will have heart disease, according to our final model?
+```{r predict using final model, echo=T, results=T}
+liz_prob1 <- predict(aic_fit_final, hd_data.new, type="response")
+liz_prob1
+```
+**According to the final model, the probability that Liz will have heart disease is 0.0336.**
 
 ##  Classification analysis
 
