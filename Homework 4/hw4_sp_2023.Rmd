@@ -64,21 +64,6 @@ LASSO with logistic regression is a powerful tool to get dimension reduction.
     - `glm()`, `Anova`
     - `pROC`
     - `cv.glmnet`
-  
-## R Markdown / Knitr tips
-
-You should think of this R Markdown file as generating a polished report, one that you would be happy to show other people (or your boss). There shouldn't be any extraneous output; all graphs and code run should clearly have a reason to be run. That means that any output in the final file should have explanations.
-
-A few tips:
-
-* Keep each chunk to only output one thing! In R, if you're not doing an assignment (with the `<-` operator), it's probably going to print something.
-* If you don't want to print the R code you wrote (but want to run it, and want to show the results), use a chunk declaration like this: `{r, echo=F}`. Notice this is set as a global option. 
-* If you don't want to show the results of the R code or the original code, use a chunk declaration like: `{r, include=F}`
-* If you don't want to show the results, but show the original code, use a chunk declaration like: `{r, results='hide'}`.
-* If you don't want to run the R code in a chunk at all use `{r, eval = F}`.
-* We show a few examples of these options in the below example code. 
-* For more details about these R Markdown options, see the [documentation](http://yihui.name/knitr/options/).
-* Delete the instructions and this R Markdown section, since they're not part of your overall report.
 
 ## Review
 
@@ -92,7 +77,6 @@ Review the code and concepts covered in
 We have two parts in this homework. Part I is guided portion of work, designed to get familiar with elements of logistic regressions/classification. Part II, we bring you projects. You have options to choose one topic among either Credit Risk via LendingClub or Diabetes and Health Management. Find details in the projects. 
 
 
-
 # Part I: Framingham heart disease study 
 
 We will continue to use the Framingham Data (`Framingham.dat`) so that you are already familiar with the data and the variables. All the results are obtained through training data. 
@@ -104,7 +88,8 @@ To keep our answers consistent, use a subset of the data, and exclude anyone wit
 ```{r data preparation, include=F}
 # Notice that we hide the code and the results here
 # Using `include=F` in the chunk declaration. 
-hd_data <- read.csv("/Users/ruolanli/Desktop/notes/data mining/Module_7_Logistic_Reg_Classification/data/Framingham.dat")
+#hd_data <- read.csv("/Users/ruolanli/Desktop/notes/data mining/Module_7_Logistic_Reg_Classification/data/Framingham.dat")
+hd_data <- read.csv("/Users/WendyDeng/STAT4710/Lecture/Module_7_Logistic_Reg_Classification/data/Framingham.dat")
 str(hd_data) 
 
 ### Renames, setting the variables with correct natures...
@@ -321,12 +306,117 @@ liz_prob1
 ### ROC/FDR
 
 i. Display the ROC curve using `fit1`. Explain what ROC reports and how to use the graph. Specify the classifier such that the False Positive rate is less than .1 and the True Positive rate is as high as possible.
+```{r roc fit1, echo=F}
+fit1.roc<- roc(hd_data.f$HD, fit1$fitted, plot=T, col="blue", sub = "Figure 1.1")
+
+plot(fit1.roc$thresholds, 1-fit1.roc$specificities,  col="green", pch=16,  
+     xlab="Threshold on prob",
+     ylab="False Positive",
+     main = "Thresholds vs. False Postive",
+     sub = "Figure 1.2")
+```
+**The ROC curve (Figure 1.1) reports the sensitivity (True Positive rate) and specificity (1-False Positive rate) of different classifiers, and we want to choose a classifier on the curve such that it has both high sensitivity and high specificity at the same time. To do so, we would make one more graphs for  False Positive rate (1-specificity) against thresholds from 0 to 1 (Figure 1.2). Based on Figure 1.2, the threshold based on a False Positive rate of less than 0.1 is around 0.3. Thus, the classifier that has a False Positive rate less than .1 and True Positive rate as high as possible is around 0.3.**
 
 ii. Overlay two ROC curves: one from `fit1`, the other from `fit2`. Does one curve always contain the other curve? Is the AUC of one curve always larger than the AUC of the other one? Why or why not?
+```{r overlay roc fit1 and fit2, echo=F}
+fit1.roc<- roc(hd_data.f$HD, fit1$fitted)
+fit2.roc<- roc(hd_data.f$HD, fit2$fitted)
+
+plot(1-fit1.roc$specificities, 
+     fit1.roc$sensitivities, col="blue", lwd=3, type="l",
+     xlab="False Positive", 
+     ylab="Sensitivity", 
+     sub = "Figure 2")
+lines(1-fit2.roc$specificities, fit2.roc$sensitivities, col="red", lwd=3)
+
+legend("bottomright",
+       c(paste0("fit1 AUC=", round(fit1.roc$auc,2)), 
+         paste0("fit2 AUC=", round(fit2.roc$auc, 2))), 
+       col=c("blue", "red"),
+       lty=1)
+```
+**Yes, the curve that has a larger AUC will always contain the other curve because AUC measures how well a model fits a data. If a model has higher sensitivity for each specificity, it will have a larger AUC. In Figure 2, fit2 is better than fit1 because fit2 has a higher AUC.**
 
 iii.  Estimate the Positive Prediction Values and Negative Prediction Values for `fit1` and `fit2` using .5 as a threshold. Which model is more desirable if we prioritize the Positive Prediction values?
+```{r 0.5 threshold for fit1 and fit2, echo=F}
+fit1.pred.5 <- ifelse(fit1$fitted > 1/2, "1", "0")
+fit2.pred.5 <- ifelse(fit2$fitted > 1/2, "1", "0")
+
+fit1.cm.5 <- table(fit1.pred.5, hd_data.f$HD)
+fit2.cm.5 <- table(fit2.pred.5, hd_data.f$HD)
+fit1.cm.5
+fit2.cm.5
+
+fit1.positive.pred <- fit1.cm.5[2,2] / sum(fit1.cm.5[2,]) 
+fit1.negative.pred <- fit1.cm.5[1,1] / sum(fit1.cm.5[1,])
+fit2.positive.pred <- fit2.cm.5[2,2] / sum(fit2.cm.5[2,])
+fit2.negative.pred <- fit2.cm.5[1,1] / sum(fit2.cm.5[1,])
+fit1.positive.pred
+fit2.positive.pred
+```
+**Since fit2 as a higher Positive Prediction value of 0.472, fit2 is more desirable if we prioritize the Positive Prediction value, which measures the accuracy of the model.**
 
 iv.  For `fit1`: overlay two curves,  but put the threshold over the probability function as the x-axis and positive prediction values and the negative prediction values as the y-axis.  Overlay the same plot for `fit2`. Which model would you choose if the set of positive and negative prediction values are the concerns? If you can find an R package to do so, you may use it directly.
+```{r overlay pos and neg pred values fit1 and fit2, echo=F}
+ppv()
+
+
+# pos pred vs fit1 threshold
+plot(1-fit1.roc$specificities, 
+     fit1.roc$sensitivities, col="blue", lwd=3, type="l",
+     xlab="False Positive", 
+     ylab="Sensitivity",
+     sub = "Figure 4.1")
+lines(1-fit2.roc$specificities, fit2.roc$sensitivities, col="red", lwd=3)
+
+legend("bottomright",
+       c(paste0("fit1 AUC=", round(fit1.roc$auc,2)), 
+         paste0("fit2 AUC=", round(fit2.roc$auc, 2))), 
+       col=c("blue", "red"),
+       lty=1)
+
+# neg pred vs fit1 threshold
+plot(1-fit1.roc$specificities, 
+     fit1.roc$sensitivities, col="blue", lwd=3, type="l",
+     xlab="False Positive", 
+     ylab="Sensitivity",
+     sub = "Figure 4.2")
+lines(1-fit2.roc$specificities, fit2.roc$sensitivities, col="red", lwd=3)
+
+legend("bottomright",
+       c(paste0("fit1 AUC=", round(fit1.roc$auc,2)), 
+         paste0("fit2 AUC=", round(fit2.roc$auc, 2))), 
+       col=c("blue", "red"),
+       lty=1)
+
+# pos pred vs fit2 threshold
+plot(1-fit1.roc$specificities, 
+     fit1.roc$sensitivities, col="blue", lwd=3, type="l",
+     xlab="False Positive", 
+     ylab="Sensitivity",
+     sub = "Figure 4.3")
+lines(1-fit2.roc$specificities, fit2.roc$sensitivities, col="red", lwd=3)
+
+legend("bottomright",
+       c(paste0("fit1 AUC=", round(fit1.roc$auc,2)), 
+         paste0("fit2 AUC=", round(fit2.roc$auc, 2))), 
+       col=c("blue", "red"),
+       lty=1)
+
+# neg pred vs fit2 threshold
+plot(1-fit1.roc$specificities, 
+     fit1.roc$sensitivities, col="blue", lwd=3, type="l",
+     xlab="False Positive", 
+     ylab="Sensitivity",
+     sub = "Figure 4.4")
+lines(1-fit2.roc$specificities, fit2.roc$sensitivities, col="red", lwd=3)
+
+legend("bottomright",
+       c(paste0("fit1 AUC=", round(fit1.roc$auc,2)), 
+         paste0("fit2 AUC=", round(fit2.roc$auc, 2))), 
+       col=c("blue", "red"),
+       lty=1)
+```
   
 ### Cost function/ Bayes Rule
 
@@ -334,6 +424,10 @@ Bayes rules with risk ratio $\frac{a_{10}}{a_{01}}=10$ or $\frac{a_{10}}{a_{01}}
 
 
 i.  Write down the linear boundary for the Bayes classifier if the risk ratio of $a_{10}/a_{01}=10$.
+$$logit(P(HD=1|SBP))=-8.40872+0.05664AGE+0.98987SEX+0.01696SBP+0.00448CHOL$$
+$$\hat P(Y=1 \vert x) > \frac{\frac{a_{0,1}}{a_{1,0}}}{1 + \frac{a_{0,1}}{a_{1,0}}} = \frac{\frac{1}{10}}{1 + \frac{1}{10}} = \frac{0.1}{1+0.1}=0.09$$ 
+$$logit > \log(\frac{0.09}{0.91})=-1.00479$$
+$$7.40392>0.05664AGE+0.98987SEX+0.01696SBP+0.00448CHOL$$
 
 ii. What is your estimated weighted misclassification error for this given risk ratio?
 
