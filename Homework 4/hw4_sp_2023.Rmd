@@ -274,6 +274,8 @@ summary(aic_fit_final)
 ```
 **Exhaustive search can not guarantee that the p-values for all the remaining variables are less than .05. After kicking out the variables that are not significant, the final model includes AGE, SEX, SBP and CHOL. The final model here is the same as the model from backwards elimination.**
 
+**should not be the same -- use fit.all**
+
 iii. Use the model chosen from part ii. as the final model. Write a brief summary to describe important factors relating to Heart Diseases (i.e. the relationships between those variables in the model and heart disease). Give a definition of “important factors”. 
 ```{r results='asis'}
 xtable(aic_fit_final)
@@ -372,7 +374,7 @@ fit2.npv <- coords(fit2.roc, ret="npv")
 # ppv
 plot(fit1.threshold$threshold, fit1.ppv$ppv, type="l", col="blue", pch=16,  
      xlab="Threshold on prob",
-     ylab="False Positive",
+     ylab="ppv",
      main = "Thresholds vs. Positive Prediction Values",
      sub = "Figure 4.1")
 lines(fit2.threshold$threshold, fit2.ppv$ppv, col="red", lwd=3)
@@ -386,7 +388,7 @@ legend("bottomright",
 # npv
 plot(fit1.threshold$threshold, fit1.npv$npv, type="l", col="blue", pch=16,  
      xlab="Threshold on prob",
-     ylab="False Positive",
+     ylab="npv",
      main = "Thresholds vs. Negative Prediction Values",
      sub = "Figure 4.1")
 lines(fit2.threshold$threshold, fit2.npv$npv, col="red", lwd=3)
@@ -398,7 +400,7 @@ legend("bottomright",
        lty=1)
 ```
 
-**If the set of ppv and npv are the concerns, then we would choose fit1 as our model.**
+**If the set of ppv and npv are the concerns, then we would choose fit2 as our model.**
   
 ### Cost function/ Bayes Rule
 
@@ -430,7 +432,7 @@ predict(aic_fit_final, hd_data.new, type="response")
 
 iv. Bayes rule gives us the best rule if we can estimate the probability of `HD-1` accurately. In practice we use logistic regression as our working model. How well does the Bayes rule work in practice? We hope to show in this example it works pretty well.
 ```{r}
-
+evaluate ppv using bayes rule
 ```
 
 Now, draw two estimated curves where x = threshold, and y = misclassification errors, corresponding to the thresholding rule given in x-axis.
