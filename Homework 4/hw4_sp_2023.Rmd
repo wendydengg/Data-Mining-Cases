@@ -358,65 +358,47 @@ fit2.positive.pred
 
 iv.  For `fit1`: overlay two curves,  but put the threshold over the probability function as the x-axis and positive prediction values and the negative prediction values as the y-axis.  Overlay the same plot for `fit2`. Which model would you choose if the set of positive and negative prediction values are the concerns? If you can find an R package to do so, you may use it directly.
 ```{r overlay pos and neg pred values fit1 and fit2, echo=F}
-ppv()
+confusionMatrix(data = as.factor(fit1.pred.5),    
+                       reference = hd_data.f$HD,             
+                       positive = levels(hd_data.f$HD)[2])  
 
+fit1.threshold <- coords(fit1.roc, ret="threshold")
+fit2.threshold <- coords(fit2.roc, ret="threshold")
+fit1.ppv <- coords(fit1.roc, ret="ppv")
+fit1.npv <- coords(fit1.roc, ret="npv")
+fit2.ppv <- coords(fit2.roc, ret="ppv")
+fit2.npv <- coords(fit2.roc, ret="npv")
 
-# pos pred vs fit1 threshold
-plot(1-fit1.roc$specificities, 
-     fit1.roc$sensitivities, col="blue", lwd=3, type="l",
-     xlab="False Positive", 
-     ylab="Sensitivity",
+# ppv
+plot(fit1.threshold$threshold, fit1.ppv$ppv, type="l", col="blue", pch=16,  
+     xlab="Threshold on prob",
+     ylab="False Positive",
+     main = "Thresholds vs. Positive Prediction Values",
      sub = "Figure 4.1")
-lines(1-fit2.roc$specificities, fit2.roc$sensitivities, col="red", lwd=3)
+lines(fit2.threshold$threshold, fit2.ppv$ppv, col="red", lwd=3)
 
 legend("bottomright",
-       c(paste0("fit1 AUC=", round(fit1.roc$auc,2)), 
-         paste0("fit2 AUC=", round(fit2.roc$auc, 2))), 
+       c(paste0("fit1"), 
+         paste0("fit2")), 
        col=c("blue", "red"),
        lty=1)
 
-# neg pred vs fit1 threshold
-plot(1-fit1.roc$specificities, 
-     fit1.roc$sensitivities, col="blue", lwd=3, type="l",
-     xlab="False Positive", 
-     ylab="Sensitivity",
-     sub = "Figure 4.2")
-lines(1-fit2.roc$specificities, fit2.roc$sensitivities, col="red", lwd=3)
+# npv
+plot(fit1.threshold$threshold, fit1.npv$npv, type="l", col="blue", pch=16,  
+     xlab="Threshold on prob",
+     ylab="False Positive",
+     main = "Thresholds vs. Negative Prediction Values",
+     sub = "Figure 4.1")
+lines(fit2.threshold$threshold, fit2.npv$npv, col="red", lwd=3)
 
 legend("bottomright",
-       c(paste0("fit1 AUC=", round(fit1.roc$auc,2)), 
-         paste0("fit2 AUC=", round(fit2.roc$auc, 2))), 
-       col=c("blue", "red"),
-       lty=1)
-
-# pos pred vs fit2 threshold
-plot(1-fit1.roc$specificities, 
-     fit1.roc$sensitivities, col="blue", lwd=3, type="l",
-     xlab="False Positive", 
-     ylab="Sensitivity",
-     sub = "Figure 4.3")
-lines(1-fit2.roc$specificities, fit2.roc$sensitivities, col="red", lwd=3)
-
-legend("bottomright",
-       c(paste0("fit1 AUC=", round(fit1.roc$auc,2)), 
-         paste0("fit2 AUC=", round(fit2.roc$auc, 2))), 
-       col=c("blue", "red"),
-       lty=1)
-
-# neg pred vs fit2 threshold
-plot(1-fit1.roc$specificities, 
-     fit1.roc$sensitivities, col="blue", lwd=3, type="l",
-     xlab="False Positive", 
-     ylab="Sensitivity",
-     sub = "Figure 4.4")
-lines(1-fit2.roc$specificities, fit2.roc$sensitivities, col="red", lwd=3)
-
-legend("bottomright",
-       c(paste0("fit1 AUC=", round(fit1.roc$auc,2)), 
-         paste0("fit2 AUC=", round(fit2.roc$auc, 2))), 
+       c(paste0("fit1"), 
+         paste0("fit2")), 
        col=c("blue", "red"),
        lty=1)
 ```
+
+**If the set of ppv and npv are the concerns, then we would choose fit1 as our model.**
   
 ### Cost function/ Bayes Rule
 
@@ -427,15 +409,47 @@ i.  Write down the linear boundary for the Bayes classifier if the risk ratio of
 $$logit(P(HD=1|SBP))=-8.40872+0.05664AGE+0.98987SEX+0.01696SBP+0.00448CHOL$$
 $$\hat P(Y=1 \vert x) > \frac{\frac{a_{0,1}}{a_{1,0}}}{1 + \frac{a_{0,1}}{a_{1,0}}} = \frac{\frac{1}{10}}{1 + \frac{1}{10}} = \frac{0.1}{1+0.1}=0.09$$ 
 $$logit > \log(\frac{0.09}{0.91})=-1.00479$$
+**The linear boundary is**
 $$7.40392>0.05664AGE+0.98987SEX+0.01696SBP+0.00448CHOL$$
 
 ii. What is your estimated weighted misclassification error for this given risk ratio?
+$$MCE=\frac{a_{1,0} \sum 1 \{\hat Y = 0 | Y=1\} + a_{0,1} \sum 1 \{\hat Y = 1 | Y=0\}}{n}$$
+```{r weighted misclassification error, results=TRUE, echo=F}
+fit.final.pred.5 <- as.factor(ifelse(aic_fit_final$fitted > .09, "1", "0"))
+MCE.final.bayes <- (10*sum(fit.final.pred.5[hd_data.f$HD == "1"] != "1")
+              + sum(fit.final.pred.5[hd_data.f$HD == "0"] != "0"))/length(hd_data.f$HD)
+MCE.final.bayes
+```
+**Given this risk ratio, the estimated weighted misclassification error is 0.715.**
 
 iii.  How would you classify Liz under this classifier?
+```{r classify Liz, echo=F}
+predict(aic_fit_final, hd_data.new, type="response")
+```
+**Under this classifier, we would classify Liz as not having heart disease.**
 
 iv. Bayes rule gives us the best rule if we can estimate the probability of `HD-1` accurately. In practice we use logistic regression as our working model. How well does the Bayes rule work in practice? We hope to show in this example it works pretty well.
+```{r}
+
+```
 
 Now, draw two estimated curves where x = threshold, and y = misclassification errors, corresponding to the thresholding rule given in x-axis.
+```{r threshold vs misclassification error, echo=F}
+fit.final.roc<- roc(hd_data.f$HD, aic_fit_final$fitted, plot=T, col="blue")
+
+plot(fit.final.roc$threshold, fit1.npv$npv, type="l", col="blue", pch=16,  
+     xlab="Threshold on prob",
+     ylab="False Positive",
+     main = "Thresholds vs. Negative Prediction Values",
+     sub = "Figure 4.1")
+lines(fit2.threshold$threshold, fit2.npv$npv, col="red", lwd=3)
+
+legend("bottomright",
+       c(paste0("fit1"), 
+         paste0("fit2")), 
+       col=c("blue", "red"),
+       lty=1)
+```
 
 v. Use weighted misclassification error, and set $a_{10}/a_{01}=10$. How well does the Bayes rule classifier perform? 
 
