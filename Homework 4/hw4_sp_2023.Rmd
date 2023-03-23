@@ -274,8 +274,6 @@ summary(aic_fit_final)
 ```
 **Exhaustive search can not guarantee that the p-values for all the remaining variables are less than .05. After kicking out the variables that are not significant, the final model includes AGE, SEX, SBP and CHOL. The final model here is the same as the model from backwards elimination.**
 
-**should not be the same -- use fit.all**
-
 iii. Use the model chosen from part ii. as the final model. Write a brief summary to describe important factors relating to Heart Diseases (i.e. the relationships between those variables in the model and heart disease). Give a definition of “important factors”. 
 ```{r results='asis'}
 xtable(aic_fit_final)
@@ -360,10 +358,6 @@ fit2.positive.pred
 
 iv.  For `fit1`: overlay two curves,  but put the threshold over the probability function as the x-axis and positive prediction values and the negative prediction values as the y-axis.  Overlay the same plot for `fit2`. Which model would you choose if the set of positive and negative prediction values are the concerns? If you can find an R package to do so, you may use it directly.
 ```{r overlay pos and neg pred values fit1 and fit2, echo=F}
-confusionMatrix(data = as.factor(fit1.pred.5),    
-                       reference = hd_data.f$HD,             
-                       positive = levels(hd_data.f$HD)[2])  
-
 fit1.threshold <- coords(fit1.roc, ret="threshold")
 fit2.threshold <- coords(fit2.roc, ret="threshold")
 fit1.ppv <- coords(fit1.roc, ret="ppv")
@@ -376,7 +370,7 @@ plot(fit1.threshold$threshold, fit1.ppv$ppv, type="l", col="blue", pch=16,
      xlab="Threshold on prob",
      ylab="ppv",
      main = "Thresholds vs. Positive Prediction Values",
-     sub = "Figure 4.1")
+     sub = "Figure 3.1")
 lines(fit2.threshold$threshold, fit2.ppv$ppv, col="red", lwd=3)
 
 legend("bottomright",
@@ -390,7 +384,7 @@ plot(fit1.threshold$threshold, fit1.npv$npv, type="l", col="blue", pch=16,
      xlab="Threshold on prob",
      ylab="npv",
      main = "Thresholds vs. Negative Prediction Values",
-     sub = "Figure 4.1")
+     sub = "Figure 3.2")
 lines(fit2.threshold$threshold, fit2.npv$npv, col="red", lwd=3)
 
 legend("bottomright",
@@ -431,35 +425,82 @@ predict(aic_fit_final, hd_data.new, type="response")
 **Under this classifier, we would classify Liz as not having heart disease.**
 
 iv. Bayes rule gives us the best rule if we can estimate the probability of `HD-1` accurately. In practice we use logistic regression as our working model. How well does the Bayes rule work in practice? We hope to show in this example it works pretty well.
-```{r}
-evaluate ppv using bayes rule
-```
+```{r Bayes rule, echo=F}
+fit.final.roc<- roc(hd_data.f$HD, aic_fit_final$fitted, plot=T, col="green")
 
-Now, draw two estimated curves where x = threshold, and y = misclassification errors, corresponding to the thresholding rule given in x-axis.
-```{r threshold vs misclassification error, echo=F}
-fit.final.roc<- roc(hd_data.f$HD, aic_fit_final$fitted, plot=T, col="blue")
+fit.final.threshold <- coords(fit.final.roc, ret="threshold")
+fit.final.ppv <- coords(fit.final.roc, ret="ppv")
+fit.final.npv <- coords(fit.final.roc, ret="npv")
 
-plot(fit.final.roc$threshold, fit1.npv$npv, type="l", col="blue", pch=16,  
+# ppv
+plot(fit.final.threshold$threshold, fit.final.ppv$ppv, type="l", col="green", pch=16,  
      xlab="Threshold on prob",
-     ylab="False Positive",
-     main = "Thresholds vs. Negative Prediction Values",
+     ylab="ppv",
+     main = "Thresholds vs. Positive Prediction Values",
      sub = "Figure 4.1")
+lines(fit1.threshold$threshold, fit1.ppv$ppv, col="blue", lwd=3)
+lines(fit2.threshold$threshold, fit2.ppv$ppv, col="red", lwd=3)
+
+legend("bottomright",
+       c(paste0("fitfinal"),
+         paste0("fit1"), 
+         paste0("fit2")), 
+       col=c("green", "blue", "red"),
+       lty=1)
+
+# npv
+plot(fit.final.threshold$threshold, fit.final.npv$npv, type="l", col="green", pch=16,  
+     xlab="Threshold on prob",
+     ylab="npv",
+     main = "Thresholds vs. Negative Prediction Values",
+     sub = "Figure 4.2")
+lines(fit1.threshold$threshold, fit1.ppv$npv, col="blue", lwd=3)
 lines(fit2.threshold$threshold, fit2.npv$npv, col="red", lwd=3)
 
 legend("bottomright",
-       c(paste0("fit1"), 
+       c(paste0("fitfinal"),
+         paste0("fit1"), 
          paste0("fit2")), 
-       col=c("blue", "red"),
+       col=c("green", "blue", "red"),
        lty=1)
+```
+**Based on the threshold vs ppv and threshold vs npv graphs, the final fit has a higher ppv and npv for each threshold compared to fit1 and fit2, which shows that the Bayes rules does work well in practice.**
+
+Now, draw two estimated curves where x = threshold, and y = misclassification errors, corresponding to the thresholding rule given in x-axis.
+```{r threshold vs misclassification error, echo=F}
+fit.final.error <- data.frame(threshold = fit.final.roc$thresholds, 
+                           error.risk10 =(10*307*(1-fit.final.roc$sensitivities)
+                                          +1*1086*(1-fit.final.roc$specificities))/length(hd_data.f$HD),
+                           error.risk1 =(1*307*(1-fit.final.roc$sensitivities)
+                                          +1*1086*(1-fit.final.roc$specificities))/length(hd_data.f$HD))
+
+plot(fit.final.error$threshold, fit.final.error$error.risk10, col = "blue", pch = 16,
+     xlab = "threshold", ylab = "weighted misclassfication error", main = "threshold vs weighted   
+     misclassification error", ylim=c(0, 1))
+lines(fit.final.error$threshold, fit.final.error$error.risk1, col="red", lwd=3)
 ```
 
 v. Use weighted misclassification error, and set $a_{10}/a_{01}=10$. How well does the Bayes rule classifier perform? 
+```{r misclassification error 10, echo=F}
+fit.final.10 <- as.factor(ifelse(aic_fit_final$fitted > .09, "1", "0"))
+MCE.10 <- (10*sum(fit.final.10[hd_data.f$HD == "1"] != "1")
+              + sum(fit.final.10[hd_data.f$HD == "0"] != "0"))/length(hd_data.f$HD)
+MCE.10
+```
+**When $a_{10}/a_{01}=10$, we have a misclassification error of 0.715.**
 
 vi. Use weighted misclassification error, and set $a_{10}/a_{01}=1$. How well does the Bayes rule classifier perform? 
+```{r misclassification error 1, echo=F}
+fit.final.1 <- as.factor(ifelse(aic_fit_final$fitted > .09, "1", "0"))
+MCE.1 <- (sum(fit.final.1[hd_data.f$HD == "1"] != "1")
+              + sum(fit.final.1[hd_data.f$HD == "0"] != "0"))/length(hd_data.f$HD)
+MCE.1
+```
+**When $a_{10}/a_{01}=1$, we have a misclassification error of 0.67, which is better than the case when  $a_{10}/a_{01}=10$.**
 
 # Part II: Project
 
 ## Project Option 1 Credit Risk via LendingClub
 
-## Project Opetion 2  Diabetes and Health Management
+## Project Option 2 Diabetes and Health Management
 
