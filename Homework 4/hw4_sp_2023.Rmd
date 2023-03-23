@@ -1,9 +1,9 @@
 ---
 title: " Modern Data Mining, HW 4"
 author:
-- Group Member 1
-- Group Member 2
-- Group Member 3
+- Wendy Deng
+- Ruolan Li
+- Kira Nightingale
 date: '11:59 pm, 03/19, 2023'
 output:
   pdf_document:
@@ -89,7 +89,7 @@ To keep our answers consistent, use a subset of the data, and exclude anyone wit
 # Notice that we hide the code and the results here
 # Using `include=F` in the chunk declaration. 
 #hd_data <- read.csv("/Users/ruolanli/Desktop/notes/data mining/Module_7_Logistic_Reg_Classification/data/Framingham.dat")
-hd_data <- read.csv("/Users/WendyDeng/STAT4710/Lecture/Module_7_Logistic_Reg_Classification/data/Framingham.dat")
+hd_data <- read.csv("data/Framingham.dat")
 str(hd_data) 
 
 ### Renames, setting the variables with correct natures...
@@ -152,7 +152,7 @@ L(\beta_0,\beta_1 \vert {\text Data})
 $$
 
 iii. Find the MLE based on this subset using glm(). Report the estimated logit function of `SBP` and the probability of `HD`=1. Briefly explain how the MLE are obtained based on ii. above.
-```{r MLE, echo=T, results=T}
+```{r MLE, echo=T, results=T, warning=FALSE}
 subset_fit <- glm(HD ~ SBP, data = sample_df, family =  "binomial")
 summary(subset_fit)
 ```
@@ -287,12 +287,12 @@ exp(coef(aic_fit_final))
 - **The final model is:**
 $$logit(P(HD=1|SBP))=-8.40872+0.05664AGE+0.98987SEX+0.01696SBP+0.00448CHOL$$
 - **Interpretation: ** \par
-1) age: The log odds of heart disease increases 0.05664 for one unit increase in age controlling for other variables. In terms of odds ration, when age increases 1 unit, the odds ratio for age is 1.06. This means the odds of heart disease increase by 1.06 for one unit increase in age controlling for other variables. \par
-2) sex: The log odds of heart disease increases 0.98987 if the patient is male controlling for other variables. In terms of odds ration, when sex is male, the odds ratio for age is 2.69. This means the odds of heart disease increase by 2.69 if the patient is male controlling for other variables.\par
-3) sbp: The log odds of heart disease increases 0.01696 for one unit increase in sbp controlling for other variables. In terms of odds ration, when sbp increases 1 unit, the odds ratio for sbp is 1.017. This means the odds of heart disease increase by 1.017 for one unit increase in sbp controlling for other variables. \par
-3) chol: The log odds of heart disease increases 0.00448 for one unit increase in chol controlling for other variables. In terms of odds ration, when chol increases 1 unit, the odds ratio for chol is 1.004. This means the odds of heart disease increase by 1.004 for one unit increase in chol controlling for other variables. \par
+1) age: The log odds of heart disease increases 0.05664 for each one unit increase in age, controlling for other variables. In terms of odds ratio, when age increases 1 unit, the odds ratio for age is 1.06. This means the odds of heart disease increases by 6% for each one unit increase in age controlling for other variables. \par
+2) sex: The log odds of heart disease increases 0.98987 if the patient is male controlling for other variables. In terms of odds ratio, when sex is male, the odds ratio for age is 2.69. This means the odds of heart disease increase by 169% if the patient is male compared to female and controlling for other variables.\par
+3) sbp: The log odds of heart disease increases 0.01696 for one unit increase in sSBP controlling for other variables. In terms of odds ration, when SBP increases 1 unit, the odds ratio for SBP is 1.017. This means the odds of heart disease increases by 1.7% for each one unit increase in SBP controlling for other variables. \par
+3) chol: The log odds of heart disease increases 0.00448 for one unit increase in cholesterol controlling for other variables. In terms of odds ratio, when cholesterol increases 1 unit, the odds ratio for cholesterol is 1.004. This means the odds of heart disease increases by 0.4% for each one unit increase in cholesterol controlling for other variables. \par
 - **Definition of “important factors”:**
-We first found a model with smallest AIC through exhaustive search, indicating a better fit of the model to the data. Then we kicked out the variables that are not significant in this model and got the final model. The coefficients of the variables in the final model are significantly different from 0 at .05 level, indicating the association between the variable and heart disease is significant controlling for other variables.
+We first found a model with smallest AIC through exhaustive search, indicating a better fit of the model to the data. Then we kicked out the variables that are not significant in this model and got the final model. The coefficients of the variables in the final model are significantly different from 0 at the alpha = 0.05 level, indicating the association between the variable and heart disease is significant controlling for other variables.
 
 iv. What is the probability that Liz will have heart disease, according to our final model?
 ```{r predict using final model, echo=T, results=T}
@@ -315,10 +315,10 @@ plot(fit1.roc$thresholds, 1-fit1.roc$specificities,  col="green", pch=16,
      main = "Thresholds vs. False Postive",
      sub = "Figure 1.2")
 ```
-**The ROC curve (Figure 1.1) reports the sensitivity (True Positive rate) and specificity (1-False Positive rate) of different classifiers, and we want to choose a classifier on the curve such that it has both high sensitivity and high specificity at the same time. To do so, we would make one more graphs for  False Positive rate (1-specificity) against thresholds from 0 to 1 (Figure 1.2). Based on Figure 1.2, the threshold based on a False Positive rate of less than 0.1 is around 0.3. Thus, the classifier that has a False Positive rate less than .1 and True Positive rate as high as possible is around 0.3.**
+**The ROC curve (Figure 1.1) reports the sensitivity (True Positive rate) and specificity (1-False Positive rate) of different classifiers, and we want to choose a classifier on the curve such that it has both high sensitivity and high specificity at the same time. To do so, we would make one more graph for False Positive rate (1-specificity) against thresholds from 0 to 1 (Figure 1.2). Based on Figure 1.2, the threshold based on a False Positive rate of less than 0.1 is around 0.3. Thus, the classifier that has a False Positive rate less than .1 and True Positive rate as high as possible is around 0.3.**
 
 ii. Overlay two ROC curves: one from `fit1`, the other from `fit2`. Does one curve always contain the other curve? Is the AUC of one curve always larger than the AUC of the other one? Why or why not?
-```{r overlay roc fit1 and fit2, echo=F}
+```{r overlay roc fit1 and fit2, echo=F, message=FALSE}
 fit1.roc<- roc(hd_data.f$HD, fit1$fitted)
 fit2.roc<- roc(hd_data.f$HD, fit2$fitted)
 

@@ -1,11 +1,11 @@
 ---
-title: "Predicting readmission probability for diabetes inpatients"
-author: "Modern Data Mining"
+title: "Predicting Readmission Probability for Diabetes Inpatients"
+author:
+- Wendy Deng
+- Ruolan Li
+- Kira Nightingale
 date: ' '
 output:
-  pdf_document:
-    toc: yes
-    toc_depth: '4'
   html_document:
     code_folding: show
     highlight: haddock
@@ -13,34 +13,409 @@ output:
     toc: yes
     toc_depth: 4
     toc_float: yes
+  pdf_document:
+    toc: yes
+    toc_depth: '4'
   word_document:
     toc: yes
     toc_depth: '4'
 urlcolor: blue
+
 ---
 
+<style type="text/css">
+  body{
+  font-size: 12pt;
+}
+</style>
+
 ```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = FALSE, fig.width = 7, fig.height = 4)
+knitr::opts_chunk$set(echo = FALSE, warning=FALSE, message = FALSE, results = 'hide', fig.width = 7, fig.height = 4)
 if(!require("pacman")) install.packages("pacman")
-pacman::p_load(dplyr, ggplot2, glmnet, car, data.table)   #add your packages here
+pacman::p_load(dplyr, ggplot2, glmnet, data.table, table1, gglasso, car, pROC, tidyverse, caret)
 ```
 
-## R Markdown
+```{r load data}
+readmission <- read.csv("readmission.csv")
+length(unique(readmission$patient_nbr))
 
-This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
+#Identifying duplicate patients. Removing duplicates so that independence assumption isn't violated. Keeping only earliest admission for duplicated patients.
+readmission[duplicated(readmission$patient_nbr), ]
+readmission <- readmission %>% 
+  group_by(patient_nbr) %>% arrange(encounter_id) %>%
+  distinct(patient_nbr, .keep_all = TRUE) %>%
+  ungroup()
 
-When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
-
-```{r cars}
-summary(cars)
 ```
 
-## Including Plots
+```{r clean data}
+table(readmission$race)
+table(readmission$readmitted)
+readmission$race[readmission$race == "?"] <- "Unknown"
+readmission$change[readmission$change == "Ch"] <- "Yes"
+readmission <- readmission %>% mutate(readmit = ifelse(readmitted == "<30", "Yes", "No"))
+readmission$readmit <- as.factor(readmission$readmit)
 
-You can also embed plots, for example:
+table(readmission$num_lab_procedures)
+table(readmission$num_medications)
+table(readmission$num_procedures)
+table(readmission$number_diagnoses)
+table(readmission$number_outpatient)
+table(readmission$number_emergency)
+table(readmission$number_inpatient)
 
-```{r pressure, echo=FALSE}
-plot(pressure)
+summary(readmission$number_outpatient)
+summary(readmission$number_emergency)
+summary(readmission$number_inpatient)
+
+table(readmission$diag1_mod)
+table(readmission$diag2_mod)
+table(readmission$diag3_mod)
+readmission$diag3_mod[readmission$diag3_mod == "?"] <- NA
+
+#Individuals with diabetes should visit the doctor 2x/year if glucose goals are met, or 4x year if they are not. Will therefore categorize outpatient visits as 0, 1-2, 3-4, 5+.
+readmission <- readmission %>% mutate(outpatient = ifelse(number_outpatient == 0, "None", ifelse(number_outpatient == 1 | number_outpatient == 2, "1-2/Year", ifelse(number_outpatient == 3 | number_outpatient == 4, "3-4/Year", "5+/Year"))))
+table(readmission$number_outpatient, readmission$outpatient)
+
+#Re-categorizing emergency visits and inpatient visits as binary (0=none, 1=1+). These types of visits should not be routine with healthy patients with well-managed diabetes so presence of either indicates potential additional risk factors.
+readmission <- readmission %>% mutate(emergency = ifelse(number_emergency == 0, "0", "1+"), inpatient = ifelse(number_inpatient == 0, "0", "1+"))
+readmission$emergency <- as.factor(readmission$emergency)
+readmission$inpatient <- as.factor(readmission$inpatient)
+
+#Dropping unneeded variables
+readmit_clean <- readmission %>% dplyr::select(-c(readmitted, number_outpatient, number_inpatient, number_emergency))
+
+label(readmit_clean$race) <- "Race"
+label(readmit_clean$gender) <- "Gender"
+label(readmit_clean$time_in_hospital) <- "Length of Stay"
+units(readmit_clean$time_in_hospital) <- "days"
+label(readmit_clean$num_lab_procedures) <- "Number of Lab Procedures"
+label(readmit_clean$num_procedures) <- "Number of Non-Lab Procedures"
+label(readmit_clean$num_medications) <- "Number of Medications Prescribed During Encounter"
+label(readmit_clean$number_diagnoses) <- "Number of Diagnoses"
+label(readmit_clean$max_glu_serum) <- "Glucose Serum"
+units(readmit_clean$max_glu_serum) <- "mg/dL"
+label(readmit_clean$A1Cresult) <- "HbA1c"
+units(readmit_clean$A1Cresult) <- "%"
+label(readmit_clean$metformin) <- "Metformin Dose"
+label(readmit_clean$glimepiride) <- "Glimepiride Dose"
+label(readmit_clean$glipizide) <- "Glipizide Dose"
+label(readmit_clean$glyburide) <- "Glyburide Dose"
+label(readmit_clean$pioglitazone) <- "Pioglitazone Dose"
+label(readmit_clean$rosiglitazone) <- "Rosiglitazone Dose"
+label(readmit_clean$insulin) <- "Insulin Dose"
+label(readmit_clean$change) <- "Change in Diabetes Medication During Encounter"
+label(readmit_clean$diabetesMed) <- "Any Diabetes Medication Prescribed During Encounter"
+label(readmit_clean$disch_disp_modified) <- "Discharge Location"
+label(readmit_clean$adm_src_mod) <- "Source of Admission"
+label(readmit_clean$adm_typ_mod) <- "Reason for Admission"
+label(readmit_clean$age_mod) <- "Age Group"
+label(readmit_clean$diag1_mod) <- "Diagnosis 1"
+label(readmit_clean$diag2_mod) <- "Diagnosis 2"
+label(readmit_clean$diag3_mod) <- "Diagnosis 3"
+label(readmit_clean$outpatient) <- "Number of Outpatient Visits in Prior Year"
+label(readmit_clean$emergency) <- "Number of Emergency Visits in Prior Year"
+label(readmit_clean$inpatient) <- "Number of Inpatient Visits in Prior Year"
+
 ```
 
-Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
+# Executive Summary
+Given the 2012 announcement that Medicaid will no longer reimburse hospitals for patient care when a patient is readmitted to the hospital within 30 days, a key priority for our hospital's administration is identifying patients who are likely to be readmitted so that more advanced care can be provided with the goal of preventing such readmissions. To that end, we sought to create a predictive model which would calculate the likelihood of readmission within 30 days for any given patient. We used a large dataset consisting of 71,518 unique patients who were admitted to one of 130 US hospitals between 1999-2008. All of the patients in the dataset had a diagnosis of diabetes, a highly prevalent condition that requires regular monitoring and can result in multiple hospital admissions if not appropriately controlled. The majority of patients included in the analysis were aged between 60-79 years and approximately 75% were white. The patient population included 6,293 patients (8.8%) who were readmitted within 30 days.
+
+Five different candidate models were proposed and assessed, each using a different combination of variables. The best model was selected as the final predictive model, and included the patient's age group, number of days spent in the hospital, whether changes were made to diabetes medications during the hospital stay, type of residence that the patient was discharged to, primary, secondary, and tertiary diagnoses, and the number of emergency and inpatient visits in the year prior to admission. While the specificity of the model is high (99.98%), sensitivity is low (0.14%). This indicates that while our model is good at correctly identifying patients who will not be readmitted within 30 days, it does a poor job at correctly predicting which patients will be readmitted within 30 days. The methods used to generate our final model can likely be improved upon, particularly through the inclusion of additional data points which may more closely align with readmission than the factors used in the present model. Importantly, this model incorporates data from 130 different hospitals, and it may be worth performing a separate analysis using data only from our hospital to ensure the results are applicable to this institution. Unfortunately, while the model described herein represents a starting point for identification of patients likely to be readmitted within 30 days, it is not advised to implement use of the model until it can be improved upon.
+
+
+# Detailed Report
+## Description of Data
+Data from this project was obtained from the Center for Clinical and Translational Research at Virginia Commonwealth University. It includes information on demographic characteristics, health, and admission data for patients with diabetes who were admitted to one of 130 US hospitals between 1999-2008. The database includes 101,766 encounters for 71,518 unique patients. Although the dataset includes patients with multiple hospital admissions, we have limited the analysis to include each patient only once, using the earliest admissions date. While this reduces the number of observations in our dataset, it allows us to run traditional regression techniques which assume independence of data points. Our final dataset therefore includes 71,518 unique patient encounters. Missingness in the data was minimal, with the most common missing datapoint being patient race (unknown for 2.7% of patients); tertiary diagnosis codes were missing for 1.7% of patients, although it is unclear whether this represents true missing data or the fact that not all patients necessarily have three medical diagnoses.
+
+The original dataset included variables which captured the number of times a given patient attended outpatient, inpatient, and emergency visits in the year prior to hospitalization. These values were collapsed into categories based on the expected number of visits for an average patient. Individuals with well-controlled diabetes are advised to attend routine outpatient visits twice a year, and individuals who are not meeting their glucose goals are advised to attend visits four times a year. Outpatient visits were therefore categorized as 0, 1-2, 3-4, and 5+. We assumed that the average healthy patient would attend neither an emergency nor inpatient visit in a given year, and therefore classified these variables into categories of 0 or 1+. 
+
+The patient population included 8.8% of patients (6,293) who were readmitted within 30 days. Most patients were between 60-79 years of age, with fewer than 1% of patients aged 19 years or younger. 74.8% of patients were white, 18% were Black/African American, 2.1% were Hispanic, 0.7% were Asian, and 4.4% fell into the "other" or "unknown" categories. The average length of stay for patients who were not readmitted within 30 days was 4.24 days (+/- 2.93), compared to	4.80 days (+/-3.06) for patients who were readmitted within 30 days. In bivariate comparisons between groups, there were significant differences between those who were readmitted within 30 days and those who were not in age, race, length of stay, serum glucose level, the number of outpatients visits in the year prior to admission, the number of inpatient visits in the year prior to admission, the number of emergency room visits in the year prior to admission, and discharge location (Table 1). The full listing of patient characteristics by group can be found in Supplemental Table 1. 
+
+```{r descriptive, results='markup'}
+#Function to perform t-tests and chi-square tests for Table 1 variables
+pvalue <- function(x, ...) {
+    # Construct vectors of data y, and groups (strata) g
+    y <- unlist(x)
+    g <- factor(rep(1:length(x), times=sapply(x, length)))
+    if (is.numeric(y)) {
+        # For numeric variables, perform a standard 2-sample t-test
+        p <- t.test(y ~ g)$p.value
+    } else {
+        # For categorical variables, perform a chi-squared test of independence
+        p <- chisq.test(table(y, g))$p.value
+    }
+    # Format the p-value, using an HTML entity for the less-than sign.
+    # The initial empty string places the output on the line below the variable label.
+    c("", sub("<", "&lt;", format.pval(p, digits=3, eps=0.001)))
+}
+
+#Creation of traditional "Table 1" with selected variables.
+table1_brief <- table1(~ age_mod + race + gender + time_in_hospital + max_glu_serum + A1Cresult + outpatient + emergency + inpatient + disch_disp_modified | factor(readmit), data = readmit_clean, overall = F, extra.col=list(`P-value`=pvalue), caption = "Table 1: Basic descriptive statistics of the study population by whether they were readmitted to the hospital within 30 days or not.")
+
+table1_brief
+```
+
+## Analysis
+We first selected a number of candidate models for assessment, namely: 1) a model with all variables that were statistically significantly different at the 0.05 level between groups under bi-variate comparisons, 2) a model with all variables that were statistically significantly different at the 0.05 level between groups excluding diagnosis codes, 3) a model determined through backwards selection, with model 2 as a starting point, 4) a model based on model 3 which also included an interaction between age group and discharge location, and 5) a model selected using LASSO methods. Additional interaction terms were explored between age group and length of hospital stay, race and length of hospital stay, and race and discharge location, but were not included in any models due to an insignificant interaction term. The full dataset was randomly split into separate training, testing, and validation sets using a 60%-20%-20% split. Candidate models were fit using logistic regression on the training set. We then applied the fitted models to the testing set to determine the most appropriate model. On the basis of area under the curve (AUC) (see Appendix Figure 1), we determined that the model which was selected via LASSO and the model with all variables which were significantly different in bivariate comparisons were equally good. We therefore selected the model generated using LASSO as it included fewer variables and was therefore more parsimonious. Our logistic model calculates the predicted probability that a given patient will be readmitted to the hospital within 30 days. To translate this into a binary yes/no prediction, we used Bayes' Rule to determine the cutoff threshold of 1/3, such that any patient with a predicted probability of >1/3 is classified as a readmission within 30 days and any patient with a predicted probability of $\leq$ 1/3 is classified as no readmission within 30 days. Finally, the performance of the model was assessed using the validation set.
+```{r model 1 lasso, include=FALSE}
+#Drop ID columns, generate X and Y
+readmit <- readmit_clean %>% select(-c(encounter_id, patient_nbr)) %>% relocate(readmit)
+readmit_nomiss <- readmit[complete.cases(readmit), ]
+
+X <- model.matrix(readmit~., readmit_nomiss)[,-1]
+dim(X)
+Y <- as.matrix(readmit_nomiss[, 1])
+
+#Set seed and run LASSO
+set.seed(12345)
+fit1.cv <- cv.glmnet(X, Y, alpha=1, family="binomial", nfolds = 10, type.measure = "deviance")  
+plot(fit1.cv)
+
+#Select lambda and get variable names
+coef.1se <- coef(fit1.cv, s="lambda.1se")  
+coef.1se <- coef.1se[which(coef.1se !=0),] 
+coef.1se
+
+#Because this includes some categorical variables, will run a model including all categories of the given variables
+fit1 <- glm(readmit ~ time_in_hospital + number_diagnoses + diabetesMed + disch_disp_modified + age_mod + diag1_mod + diag2_mod + diag3_mod + emergency + inpatient, family=binomial, data=readmit)
+summary(fit1) 
+Anova(fit1)
+
+#Number of diagnoses is not significant with these variables included - removing it.
+fit1_reduced <- glm(readmit ~ time_in_hospital + diabetesMed + disch_disp_modified + age_mod + diag1_mod + diag2_mod + diag3_mod + emergency + inpatient, family=binomial, data=readmit)
+summary(fit1_reduced) 
+Anova(fit1_reduced)
+
+fitfinal.fitted <- predict(fit1_reduced, readmit, type="response")
+
+```
+
+```{r training testing validation sets}
+# Split data to three portions of .6, .2 and .2 of data size N
+set.seed(12345)
+N <- length(readmit$readmit)
+n1 <- floor(.6*N)
+n2 <- floor(.2*N)
+
+#Generate training, testing, and validation sets
+idx_train <- sample(N, n1)
+idx_no_train <- (which(! seq(1:N) %in% idx_train))
+idx_test <- sample( idx_no_train, n2)
+idx_val <- which(! idx_no_train %in% idx_test)
+data.train <- readmit[idx_train,]
+data.test <- readmit[idx_test,]
+data.val <- readmit[idx_val,]
+
+
+```
+
+```{r fitting additional models}
+#Model 2 is same as fit1_reduced above from LASSO
+fit2 <- glm(readmit ~ time_in_hospital + diabetesMed + disch_disp_modified + age_mod + diag1_mod + diag2_mod + diag3_mod + emergency + inpatient, family=binomial, data=data.train)
+
+#Model 3 includes all variables which were different between groups in bivariate comparisons except diagnoses
+fit3 <- glm(readmit ~ race + age_mod + time_in_hospital + num_lab_procedures + num_medications + number_diagnoses + metformin + glipizide + insulin + change + diabetesMed + disch_disp_modified + adm_typ_mod + outpatient + emergency + inpatient, family=binomial, data=data.train)
+summary(fit3)
+Anova(fit3)
+
+#Model 4 includes all variables which were different between groups in bivariate comparisons plus diagnoses
+fit4 <- glm(readmit ~ race + age_mod + time_in_hospital + num_lab_procedures + num_medications + number_diagnoses + metformin + glipizide + insulin + change + diabetesMed + disch_disp_modified + adm_typ_mod + outpatient + emergency + inpatient + diag1_mod + diag2_mod + diag3_mod, family=binomial, data=data.train)
+Anova(fit4)
+
+#Model 5 starts with model 4 then uses backwards selection until all variables significant at 0.05 level
+fit5 <- glm(readmit ~ race + age_mod + time_in_hospital + metformin + diabetesMed + disch_disp_modified + emergency + inpatient + diag1_mod + diag2_mod + diag3_mod, family=binomial, data=data.train)
+Anova(fit5)
+
+#Model 6 is model 5 plus an interaction between age and discharge location
+fit6 <- glm(readmit ~ race + time_in_hospital + metformin + diabetesMed + age_mod * disch_disp_modified + emergency + inpatient + diag1_mod + diag2_mod + diag3_mod, family=binomial, data=data.train)
+Anova(fit6)
+
+```
+
+```{r selecting best model, include=FALSE}
+#Get predicted values
+fit2.fitted.test <- predict(fit2, data.test, type="response")
+fit3.fitted.test <- predict(fit3, data.test, type="response")
+fit4.fitted.test <- predict(fit4, data.test, type="response")
+fit5.fitted.test <- predict(fit5, data.test, type="response")
+fit6.fitted.test <- predict(fit6, data.test, type="response")
+
+#Generate ROC curves for different models
+fit2.test.roc <- roc(data.test$readmit, fit2.fitted.test)
+fit3.test.roc <- roc(data.test$readmit, fit3.fitted.test)
+fit4.test.roc <- roc(data.test$readmit, fit4.fitted.test)
+fit5.test.roc <- roc(data.test$readmit, fit5.fitted.test)
+fit6.test.roc <- roc(data.test$readmit, fit6.fitted.test)
+
+#Plotting curves - they're really close together and this doesn't look good. But faceted graph looks even worse. Keeping as-is.
+ggroc(list(fit2.test.roc, fit3.test.roc, fit4.test.roc, fit5.test.roc, fit6.test.roc)) +
+  theme_bw()
+
+roc.list <- roc(readmit ~ fit2.fitted.test + fit3.fitted.test + fit4.fitted.test + fit5.fitted.test + fit6.fitted.test, data = data.test)
+#Extracting AUCs, creating matrix
+auc<- c(auc(fit2.test.roc), auc(fit3.test.roc), auc(fit4.test.roc), auc(fit5.test.roc), auc(fit6.test.roc))
+names <- c("Fit 1", "Fit 2", "Fit 3", "Fit 4", "Fit 5")
+auc.vals <- matrix(c(names, auc), ncol=2)
+auc.vals <- as.data.frame(auc.vals)
+auc.vals$V2 <- as.numeric(auc.vals$V2)
+
+data.labels <- auc.vals %>% 
+  mutate(label_long=paste0(V1,", AUC = ", paste(round(V2, 4))))
+
+roc.curves <- ggroc(roc.list) +
+  scale_color_discrete(labels=data.labels$label_long) +
+  theme_bw() +
+  labs(title = "Appendix Figure 1: ROC Curves for 5 Models")
+
+##Based on AUC, the model selected by LASSO is best##
+```
+
+
+```{r gglasso}
+## CAN'T GET THIS CHUNK TO WORK - GGLASSO KEEPS CRASHING R EVEN WHEN I CUT VARIABLES OR REDUCE K-FOLDS
+
+#Drop ID columns and diagnosis columns (they have 20+ levels each and R is crashing when I try to run gglasso)
+#readmit_subset <- readmit_clean %>% select(-c(encounter_id, patient_nbr, diag1_mod, diag2_mod, diag3_mod)) %>% relocate(readmit)
+
+#X <- model.matrix(readmit~., readmit_subset)[,-1]
+#dim(X)
+#Y <- readmit_subset[, 1]
+
+# Convert the label to -1 and 1 
+# Required by gglasso
+#Y <- (-1)*(Y == 0) + (1)*(Y == 1)
+
+# Create group labels - WHY WON'T THIS WORK?????
+#readmit_subset <- readmit_subset %>% relocate(readmit, .after = inpatient) %>% relocate(time_in_hospital, num_lab_procedures, num_procedures, num_medications, number_diagnoses)
+#readmit_subset[6:26] <- lapply(readmit_subset[6:26], as.factor)
+
+#group1 = NULL
+#for (i in 1:28){
+#  if (is.factor(readmit[,i])) {
+#    num_level = nlevels(readmit[,i])
+#    group1 = c(group1, rep(i, num_level - 1))
+#  } else group1 = c(group1, i)
+#}
+#length(group1)
+
+#Creating the vector manually since I can't get the above loop to work
+#length <- sapply(readmit_subset[ , 1:26], nlevels)
+
+#group <- c(1, 2, 3, 4, 5, rep(6, 5), rep(7, 2), rep(8, 3), rep(9, 3), rep(10, 3), rep(11, 3), rep(12, 3), rep(13, 3), rep(14, 3), rep(15, 3), rep(16, 3), 17, 18, rep(19, 3), rep(20, 3), rep(21, 3), rep(22, 3), rep(23, 3), 24, 25)
+#length(group)
+
+#GGLASSO
+#cv_glasso <- cv.gglasso(x = X, y = Y, group=group, loss="logit", 
+#                 pred.loss="misclass", nfolds=5)
+#names(cv_glasso) 
+#plot(cv_glasso) 
+```
+
+
+## Conclusion
+The final predictive model includes the patient's age group, number of days spent in the hospital, whether changes were made to diabetes medications during the hospital stay, type of residence that the patient was discharged to, primary, secondary, and tertiary diagnoses, and the number of emergency and inpatient visits in the year prior to admission. The AUC of the final model is 0.6394, indicating that there is likely room for improvement. Specificity of the model is 99.98% whereas sensitivity is only 0.14%. The rate of false positives was low at 0.02%, but the rate of false negatives was high (99.86%). The confusion matrix and additional performance measures can be found in Appendix Figure 2.
+
+Unfortunately, our model has multiple limitations as illustrated by the poor sensitivity. It is likely that there are additional factors which were not captured in our dataset which would offer more predictive value and could improve our model - for example, a measure such as the Charleston Co-morbidity Score may do a better job of capturing overall patient health than diagnosis codes. Our model also does not account for changes in medical practice and hospital policy over time. As the dataset used to generate our predictive model spans a period of ten years, it is possible that factors which predicted likelihood of readmission within 30 days changed from the time the earlier data was collected to the time the later data was collected. Inclusion of the year of admission could help control for any time effects and allow us to create a model which is better representative of current medical and hospital practices. Finally, although all patients in this dataset have diabetes, the diagnosis associated with hospital admission varied. For example, the most common primary diagnosis code was ischemic heart disease (5233 of patients), followed by heart failure (3980 patients) and respiratory/other chest issues (3040 patients). While it is possible that patients with heart failure and ischemic heart disease may have similar factors which are likely to lead to readmission, it seems likely that different factors may predict readmission for patients with respiratory problems. Therefore, we may be able to achieve better prediction accuracy with separate models based on the patient's reason for admission.
+
+
+```{r threshold rules and honest AUC, results='hide'}
+#Fitting model with validation data
+fit2.fitted.validation <- predict(fit2, data.val, type="response")
+pROC::auc(data.val$readmit, fit2.fitted.validation)
+##Honest AUC is 0.6394
+
+
+##Using Bayes Rule, threshold should be set at 0.33 (0.5/(1+0.5))
+fit2.predict <- ifelse(fit2.fitted.validation > 1/3, "1", "0") 
+cm <- table(fit2.predict, data.val$readmit)
+cm
+
+#Sensitivity, specificity, false positives, false negatives
+sensitivity <- cm[2,2]/sum(cm[,2])
+sensitivity
+specificity <- cm[1,1]/sum(cm[,1])
+specificity
+false.positive <- cm[2,1]/sum(cm[,1])
+false.positive
+false.negative <- cm[1,2]/sum(cm[,2])
+false.negative
+```
+# Appendix
+
+**Appendix Table 1:** Full listing of all variables and bivariate comparisons between those who were admitted within 30 days and those who were not. For the purpose of brevity, diagnosis codes are not included in this table, although primary, secondary, and tertiary diagnosis codes were significantly different across groups.
+```{r appendix 1, results='markup'}
+table1_full <- table1(~ age_mod + race + gender + time_in_hospital + num_lab_procedures + num_procedures + num_medications + number_diagnoses +max_glu_serum + A1Cresult + outpatient + emergency + inpatient + metformin + glimepiride + glipizide + glyburide + pioglitazone + rosiglitazone + insulin + change + diabetesMed + disch_disp_modified + adm_src_mod + adm_typ_mod | factor(readmit), data = readmit_clean, overall = F, extra.col=list(`P-value`=pvalue), caption = "Appendix Table 1: Basic descriptive statistics of the study population by whether they were readmitted to the hospital within 30 days or not.")
+
+table1_full
+```
+
+<br>
+
+**Appendix Figure 1:** ROC curves for five candidate models: 1) a model selected using LASSO methods, 2) a model with all variables that were statistically significantly different at the 0.05 level between groups under bi-variate comparisons excluding diagnosis codes, 3) a model with all variables that were statistically significantly different at the 0.05 level between groups including diagnosis codes, 4) a model determined through backwards selection, with model 3 as a starting point, and 5) a model based on model 4 which also included an interaction between age group and discharge location. 
+```{r roc curve display, warning=FALSE}
+roc.curves
+```
+<br>
+
+**Appendix Figure 2:** Confusion matrix for our final model, showing the true readmission status of patients and the predicted readmission status generated by our model.
+```{r confusion matrix, results='markup'}
+predict_df <- as.data.frame(fit2.predict) %>% mutate(row = row_number())
+actual_df <- as.data.frame(data.val$readmit) %>% mutate(row = row_number())
+cm_df <- full_join(predict_df, actual_df, by = "row") %>% mutate(prediction = ifelse(fit2.predict == 0, "No", "Yes")) %>% rename(reality = "data.val$readmit") %>% select(-c(fit2.predict)) 
+cm_df <- cm_df %>% mutate(goodbad = ifelse(prediction == reality, "Correct", "Incorrect"))
+cm_df$prediction <- as.factor(cm_df$prediction)
+
+cm_interim <- confusionMatrix(data = cm_df$prediction, reference = cm_df$reality)
+
+#Function to draw matrix
+draw_confusion_matrix <- function(cm) {
+
+  layout(matrix(c(1,1,2)))
+  par(mar=c(2,2,2,2))
+  plot(c(100, 345), c(300, 450), type = "n", xlab="", ylab="", xaxt='n', yaxt='n')
+  title('Appendix Figure 2: Confusion Matrix', cex.main=2)
+
+  # create the matrix 
+  rect(150, 430, 240, 370, col='#adf7b6')
+  text(195, 435, 'No', cex=1.2)
+  rect(250, 430, 340, 370, col='#ffc09f')
+  text(295, 435, 'Yes', cex=1.2)
+  text(125, 370, 'Predicted', cex=1.3, srt=90, font=2)
+  text(245, 450, 'Actual', cex=1.3, font=2)
+  rect(150, 305, 240, 365, col='#ffc09f')
+  rect(250, 305, 340, 365, col='#adf7b6')
+  text(140, 400, 'No', cex=1.2, srt=90)
+  text(140, 335, 'Yes', cex=1.2, srt=90)
+
+  # add in the cm results 
+  res <- as.numeric(cm$table)
+  text(195, 400, res[1], cex=1.6, font=2, col='black')
+  text(195, 335, res[2], cex=1.6, font=2, col='black')
+  text(295, 400, res[3], cex=1.6, font=2, col='black')
+  text(295, 335, res[4], cex=1.6, font=2, col='black')
+
+  # add in the specifics 
+  plot(c(100, 0), c(100, 0), type = "n", xlab="", ylab="", main = "DETAILS", xaxt='n', yaxt='n')
+  text(10, 85, names(cm$byClass[1]), cex=1.2, font=2)
+  text(10, 70, round(as.numeric(cm$byClass[1]), 4), cex=1.2)
+  text(30, 85, names(cm$byClass[2]), cex=1.2, font=2)
+  text(30, 70, round(as.numeric(cm$byClass[2]), 4), cex=1.2)
+  text(50, 85, names(cm$byClass[3]), cex=1.2, font=2)
+  text(50, 70, round(as.numeric(cm$byClass[5]), 4), cex=1.2)
+  text(70, 85, names(cm$byClass[4]), cex=1.2, font=2)
+  text(70, 70, round(as.numeric(cm$byClass[6]), 4), cex=1.2)
+  text(90, 85, names(cm$byClass[5]), cex=1.2, font=2)
+  text(90, 70, round(as.numeric(cm$byClass[7]), 4), cex=1.2)
+
+  # add in the accuracy information 
+  text(30, 35, names(cm$overall[1]), cex=1.2, font=2)
+  text(30, 20, round(as.numeric(cm$overall[1]), 4), cex=1.2)
+  text(70, 35, names(cm$overall[2]), cex=1.2, font=2)
+  text(70, 20, round(as.numeric(cm$overall[2]), 4), cex=1.2)
+}  
+draw_confusion_matrix(cm_interim)
+
+```
+
