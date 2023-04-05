@@ -618,6 +618,13 @@ ASVAB_PC2
 
 ii. Is there any evidence showing ASVAB test scores in terms of ASVAB_PC1 and ASVAB_PC2, might affect the Income?  Show your work here. You may control a few other variables, including gender. 
 
+```{r PC1 PC2 Income}
+model <- lm(logIncome ~ ASVAB_PC1$PC1 + ASVAB_PC2$PC2 + Gender, data = IQ)
+summary(model)
+
+IQ$logIncome
+```
+
 iii. Is there any evidence to show that there is gender bias against either male or female in terms of income in the above model? 
 
 
