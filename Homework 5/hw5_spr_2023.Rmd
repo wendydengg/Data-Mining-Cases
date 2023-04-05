@@ -554,6 +554,41 @@ Variable Related to Life Success in 2006
 
 ## 1. EDA: Some cleaning work is needed to organize the data. 
 
+```{r EDA}
+IQ <- read.csv("data/IQ.Full.csv")
+#str(IQ)
+#names(IQ)
+#summary(IQ)
+#dim(IQ)
+
+# The first variable is the label for each person. Take that out.
+IQ <- IQ[,-1] 
+
+# Set categorical variables as factors
+IQ$Race <- as.factor(IQ$Race)
+IQ$Gender <- as.factor(IQ$Gender)
+IQ$Imagazine <- as.factor(IQ$Imagazine)
+IQ$Inewspaper <- as.factor(IQ$Inewspaper)
+IQ$Ilibrary <- as.factor(IQ$Ilibrary)
+
+# Make log transformation for Income and take the original Income out
+IQ <- IQ %>% 
+  mutate(logIncome = log(Income2005)) %>%
+  select(-Income2005)
+
+# Take the last person out of the dataset and label it as **Michelle**. 
+Michelle <- tail(IQ, 1)
+IQ <- IQ %>% 
+  filter(row_number() <= n()-1)
+
+# When needed, split data to three portions: training, testing and validation (70%/20%/10%)
+set.seed(1) 
+n <- nrow(IQ) 
+validation.index <- sample(n, n*0.10) # 10% of IQ is validation data
+IQ.val <- IQ[validation.index, ] # extract validation data from IQ
+IQ.tmp <- IQ[-validation.index, ] # remove validation data from IQ, store as temporary data from which testing and training data will be extracted
+```
+
 + The first variable is the label for each person. Take that out.
 + Set categorical variables as factors. 
 + Make log transformation for Income and take the original Income out
@@ -570,6 +605,16 @@ We only use linear models to answer the questions below.
 
 i. To summarize ASVAB test scores, create PC1 and PC2 of 10 scores of ASVAB tests and label them as
 ASVAB_PC1 and ASVAB_PC2. Give a quick interpretation of each ASVAB_PC1 and ASVAB_PC2 in terms of the original 10 tests. 
+
+```{r PC1 PC2, echo=F}
+pc.tests <- prcomp(IQ[,  c(10:19)], scale=TRUE) 
+pc.tests.loading <- data.frame(tests=row.names(pc.tests$rotation), pc.tests$rotation) 
+
+ASVAB_PC1 <- pc.tests.loading %>% select(PC1) %>% arrange(-PC1)
+ASVAB_PC2 <- pc.tests.loading %>% select(PC2) %>% arrange(-PC2)
+ASVAB_PC1
+ASVAB_PC2
+```
 
 ii. Is there any evidence showing ASVAB test scores in terms of ASVAB_PC1 and ASVAB_PC2, might affect the Income?  Show your work here. You may control a few other variables, including gender. 
 
