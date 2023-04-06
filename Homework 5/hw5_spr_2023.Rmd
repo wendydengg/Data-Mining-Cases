@@ -573,7 +573,7 @@ IQ$Ilibrary <- as.factor(IQ$Ilibrary)
 
 # Make log transformation for Income and take the original Income out
 IQ <- IQ %>% 
-  mutate(logIncome = log(Income2005)) %>%
+  mutate(LogIncome = log(Income2005)) %>%
   select(-Income2005)
 
 # Take the last person out of the dataset and label it as **Michelle**. 
@@ -587,6 +587,9 @@ n <- nrow(IQ)
 validation.index <- sample(n, n*0.10) # 10% of IQ is validation data
 IQ.val <- IQ[validation.index, ] # extract validation data from IQ
 IQ.tmp <- IQ[-validation.index, ] # remove validation data from IQ, store as temporary data from which testing and training data will be extracted
+n1 <- nrow(IQ.tmp)
+IQ.test <- IQ[sample(n1, n*0.20), ]
+IQ.train <- IQ[-sample(n1, n*0.20), ]
 ```
 
 + The first variable is the label for each person. Take that out.
@@ -610,23 +613,27 @@ ASVAB_PC1 and ASVAB_PC2. Give a quick interpretation of each ASVAB_PC1 and ASVAB
 pc.tests <- prcomp(IQ[,  c(10:19)], scale=TRUE) 
 pc.tests.loading <- data.frame(tests=row.names(pc.tests$rotation), pc.tests$rotation) 
 
-ASVAB_PC1 <- pc.tests.loading %>% select(PC1) %>% arrange(-PC1)
-ASVAB_PC2 <- pc.tests.loading %>% select(PC2) %>% arrange(-PC2)
-ASVAB_PC1
-ASVAB_PC2
+pc.tests.loading %>% select(PC1) %>% arrange(-PC1)
+pc.tests.loading %>% select(PC2) %>% arrange(-PC2)
+
+ASVAB_PC1 <- pc.tests$x[,1]
+ASVAB_PC2 <- pc.tests$x[,2]
 ```
 
 ii. Is there any evidence showing ASVAB test scores in terms of ASVAB_PC1 and ASVAB_PC2, might affect the Income?  Show your work here. You may control a few other variables, including gender. 
 
 ```{r PC1 PC2 Income}
-model <- lm(logIncome ~ ASVAB_PC1$PC1 + ASVAB_PC2$PC2 + Gender, data = IQ)
-summary(model)
-
-IQ$logIncome
+pc.model <- lm(LogIncome ~ ASVAB_PC1 + ASVAB_PC2 + Gender, data = IQ)
+summary(pc.model)
 ```
+**Since the p-values for the two PCs and gender are small regardless of significance level, we can conclude that there is evidence showing ASVAB scores in terms of the two PCs might affect income.**
 
 iii. Is there any evidence to show that there is gender bias against either male or female in terms of income in the above model? 
 
+```{r}
+car::Anova(pc.model)
+```
+**According to Anova results, since gender has a p-value of < 2.2e-16, we reject the null hypothesis, meaning that there is gender bias against either male or female in terms of income in the above model.**
 
 We next build a few models for the purpose of prediction using all the information available. From now on you may use the three data sets setting (training/testing/validation) when it is appropriate. 
 
@@ -634,38 +641,154 @@ We next build a few models for the purpose of prediction using all the informati
 
 i. fit1: tree(Income ~ Educ + Gender, data.train) with default set up 
 
+```{r fit1, echo=F}
+fit1 <- tree(LogIncome ~ Educ + Gender, IQ.train)
+```
+
     a) Display the tree
-    b) How many end nodes? Briefly explain how the estimation is obtained in each end nodes and deescribe the prediction equation
+    
+```{r fit1 plot, echo=F}
+plot(fit1)
+text(fit1)
+```
+   
+    b) How many end nodes? Briefly explain how the estimation is obtained in each end nodes and describe the prediction equation
+    
+```{r fit1 summmary, echo=F}
+fit1
+data.table::data.table(fit1$frame)
+```
+    
+**There are four end nodes, meaning prediction for LogIncome only takes one of the four values. For example, if Gender is male and years of Education completed before 2006 is less than 15.5, then the predicted LogIncome is 11.16.**
+    
     c) Does it show interaction effect of Gender and Educ over Income?
+    
+**Since Educ has a split after Gender, there is interaction effect of Gender and Educ over Income.**
+
     d) Predict Michelle's income
+    
+```{r fit1 predict Michelle, echo=F}
+predict(fit1, Michelle)
+```
+
+**Michelle's LogIncome is predicted to be 9.96.**
 
 ii. fit2: fit2 <- rpart(Income2005 ~., data.train, minsplit=20, cp=.009)
 
+```{r fit2, echo=F}
+fit2 <- rpart(LogIncome ~., IQ.train, minsplit=20, cp=.009)
+```
+
     a) Display the tree using plot(as.party(fit2), main="Final Tree with Rpart") 
+    
+```{r fit2 plot, echo=F}
+plot(as.party(fit2), main="Final Tree with Rpart") 
+```
+
     b) A brief summary of the fit2
+    
+```{r fit2 summary, echo=F}
+fit2
+data.table::data.table(fit2$frame)
+```
+    
+**The model fit2 has seven end node, and the tree tales all of the predictor variables into consideration and grows until at least 20 splits have occurred.**
+
     c) Compare testing errors between fit1 and fit2. Is the training error from fit2 always less than that from fit1? Is the testing error from fit2 always smaller than that from fit1? 
+    
+```{r testing errors, echo=F}
+train.error.fit1 <- sum((predict(fit1, IQ.train) - IQ.train$LogIncome)^2)
+train.error.fit2 <- sum((predict(fit2, IQ.train) - IQ.train$LogIncome)^2)
+
+test.error.fit1 <- sum((predict(fit1, IQ.test) - IQ.test$LogIncome)^2)
+test.error.fit2 <- sum((predict(fit2, IQ.test) - IQ.test$LogIncome)^2)
+
+test.error.fit1
+test.error.fit2
+```
+**Since fit2 uses all of the predictor variables, we would expect its training error to be always less than that from fit1 because fit2 should provide a better fit to the training data. However, we cannot expect the testing error of fit2 to be always less than that from fit1 because using more predictor variables doesn't always result in a better model, and it is possble that fit2 overfits the training data, which can result in a higher testing error.**
+
     d) You may prune the fit2 to get a tree with small testing error. 
+    
+```{r}
+
+```
     
 iii. fit3: bag two trees
 
     a) Take 2 bootstrap training samples and build two trees using the 
     rpart(Income2005 ~., data.train.b, minsplit=20, cp=.009). Display both trees.
+    
+```{r bootstrap trees, echo=F}
+# bootstrap tree 1 
+par(mfrow=c(1, 2))
+n=2067
+set.seed(1)  
+index1 <- sample(n, n, replace = TRUE)
+IQ.train2 <- IQ.train[index1, ]  # IQ.train2 here is a bootstrap sample
+boot.1.single.full <- rpart(LogIncome ~., IQ.train2, minsplit=20, cp=.009)
+plot(boot.1.single.full)
+title(main = "First bootstrap tree")
+text(boot.1.single.full, pretty=0)
+
+# bootstrap tree 2 
+set.seed(2)
+index1 <- sample(n, n, replace = TRUE)
+IQ.train2 <- IQ.train[index1, ]  # IQ.train2 here is a bootstrap sample
+boot.2.single.full <- rpart(LogIncome ~., IQ.train2, minsplit=20, cp=.009)
+plot(boot.2.single.full)
+title(main = "Second bootstrap tree")
+text(boot.2.single.full, pretty=0)
+par(mfrow=c(1,1))
+```
+    
     b) Explain how to get fitted values for Michelle by bagging the two trees obtained above. Do not use the predict(). 
+    
+**We can get fitted values for Michelle by taking the average of the bagged predictions for each observation in the two trees.**
+    
+```{r fitted value bagged trees Michelle, echo=F}
+fit.bag.2.predict <- (predict(boot.1.single.full, Michelle) + predict(boot.2.single.full, Michelle))/2 #bagging
+data.frame(fitted=fit.bag.2.predict,  obsy=Michelle["LogIncome"]) 
+```
+
     c) What is the testing error for the bagged tree. Is it guaranteed that the testing error by bagging the two tree always smaller that either single tree? 
+    
+```{r testing error bagged tree, echo=F}
+test.error.bag <- mean((predict(fit.bag.2.predict, IQ.test) - IQ.test$LogIncome)^2)
+```
     
 iv. fit4: Build a best possible RandomForest
 
     a) Show the process how you tune mtry and number of trees. Give a very high level explanation how fit4 is built.
+    
+```{r}
+```
+
     b) Compare the oob errors form fit4 to the testing errors using your testing data. Are you convinced that oob errors estimate testing error reasonably well.
+    
+```{r}
+```
+    
     c) What is the predicted value for Michelle?
+    
+```{r}
+```
 
     
 v. Now you have built so many predicted models (fit1 through fit4 in this section). What about build a fit5 which bags fit1 through fit4. Does fit5 have the smallest testing error?
 
+```{r}
+```
+
 vi.  Summarize the results and nail down one best possible final model you will recommend to predict income. Explain briefly why this is the best choice. Finally for the first time evaluate the prediction error using the validating data set. 
+
+```{r}
+```
 
 vii. Use your final model to predict Michelle's income. 
 
+```{r}
+```
 
     
 
