@@ -590,6 +590,10 @@ train.idx <- setdiff(setdiff(1:n, validation.index), test.idx)
 IQ.val <- IQ[validation.index, ]
 IQ.test <- IQ[test.idx, ]
 IQ.train <- IQ[train.idx, ]
+
+#summary(IQ.val)
+#summary(IQ.test)
+#summary(IQ.train)
 ```
 
 + The first variable is the label for each person. Take that out.
@@ -656,7 +660,7 @@ text(fit1)
    
     b) How many end nodes? Briefly explain how the estimation is obtained in each end nodes and describe the prediction equation
     
-**There are four end nodes, meaning prediction for LogIncome only takes one of the four values. For example, if Gender is male and years of Education completed before 2006 is less than 15.5, then the predicted LogIncome is 11.22.**
+**There are four end nodes, meaning prediction for LogIncome using Educ and Gender as the two predictors only takes one of the four values. For example, if Gender is male and years of Education completed before 2006 is less than 15.5, then the predicted LogIncome for that person is 11.22.**
     
     c) Does it show interaction effect of Gender and Educ over Income?
     
@@ -675,6 +679,7 @@ ii. fit2: fit2 <- rpart(Income2005 ~., data.train, minsplit=20, cp=.009)
 ```{r fit2, echo=F}
 fit2 <- rpart(LogIncome ~., IQ.train, minsplit=20, cp=.009)
 fit2
+#summary(fit2)
 ```
 
     a) Display the tree using plot(as.party(fit2), main="Final Tree with Rpart") 
@@ -685,9 +690,7 @@ plot(as.party(fit2), main="Final Tree with Rpart")
 
     b) A brief summary of the fit2
     
-**The model fit2 has seven end node, and the tree tales all of the predictor variables into consideration and grows until at least 20 splits have occurred.**
-
-**MORE**
+**The model fit2 has seven end node, and this tree takes all of the predictor variables into consideration and splits only if there are at least 20 observations in a node. Out of all of the predictor variables, Gender has the greatest importance, hence it is the root of the tree. For example, if a person is male and has completed at least 15.5 years of Education, then his predicted LogIncome is 11.22.**
 
     c) Compare testing errors between fit1 and fit2. Is the training error from fit2 always less than that from fit1? Is the testing error from fit2 always smaller than that from fit1? 
     
@@ -702,27 +705,25 @@ test.error.fit2 <- mean((predict(fit2, IQ.test) - IQ.test$LogIncome)^2)
 test.error.fit1
 test.error.fit2
 ```
-**Since fit2 uses all of the predictor variables, we would expect its training error to be always less than that from fit1 because fit2 should provide a better fit to the training data. We can see that the training error for fit2 (0.7437005) is less than that of fit1 (0.7900584). However, we cannot expect the testing error of fit2 to be always less than that from fit1 because using more predictor variables doesn't always result in a better model, and it is possible that fit2 overfits the training data, which can result in a higher testing error. As we can see, the testing error for fit2 (0.7656725) is also less than that of fit1 (0.7959225).**
+**Since fit2 uses all of the predictor variables, we would expect its training error to be always less than that from fit1 because fit2 should provide a better fit to the training data. We can see that the training error for fit2 (0.7437005) is less than that of fit1 (0.7900584). However, we cannot expect the testing error of fit2 to be always less than that from fit1 because using more predictor variables doesn't always result in a better model, and it is possible that fit2 overfits the training data, which can result in a higher testing error. As we can see, the testing error for fit2 (0.6823709) is also less than that of fit1 (0.7059736).**
 
     d) You may prune the fit2 to get a tree with small testing error. 
     
 ```{r fit2 prune, echo=F}
-fit2.t <- tree(LogIncome ~., IQ.train)
-fit2.p <- prune.tree(fit2.t, best=4) 
-
+# fit a tree with large size
+fit2.t <- tree(LogIncome ~., IQ.train,
+          control=tree.control(nobs=nrow(IQ.train2),
+                minsize = 4,
+                mindev=0.007))
+fit2.p <- prune.tree(fit2.t, best=4)  
+#plot the best subtrees
 par(mfrow=c(1, 2))
 plot(fit2.t)
-text(fit2.t)
-title(main="Fit2 tree")
-
+title(main="Fit2 main tree")
+text(fit2.t) # main tree
 plot(fit2.p)
-text(fit2.p)
 title(main="Fit2 best size 4 pruned")
-
-test.error.fit2.t <- mean((predict(fit2.t, IQ.test) - IQ.test$LogIncome)^2)
-test.error.fit2.p <- mean((predict(fit2.p, IQ.test) - IQ.test$LogIncome)^2)
-test.error.fit2.t 
-test.error.fit2.p
+text(fit2.p) # pruned tree
 ```
     
 iii. fit3: bag two trees
