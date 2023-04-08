@@ -692,23 +692,23 @@ plot(as.party(fit2), main="Final Tree with Rpart")
     c) Compare testing errors between fit1 and fit2. Is the training error from fit2 always less than that from fit1? Is the testing error from fit2 always smaller than that from fit1? 
     
 ```{r testing errors, echo=F}
-train.error.fit1 <- sum((predict(fit1, IQ.train) - IQ.train$LogIncome)^2)
-train.error.fit2 <- sum((predict(fit2, IQ.train) - IQ.train$LogIncome)^2)
+train.error.fit1 <- mean((predict(fit1, IQ.train) - IQ.train$LogIncome)^2)
+train.error.fit2 <- mean((predict(fit2, IQ.train) - IQ.train$LogIncome)^2)
 train.error.fit1
 train.error.fit2
 
-test.error.fit1 <- sum((predict(fit1, IQ.test) - IQ.test$LogIncome)^2)
-test.error.fit2 <- sum((predict(fit2, IQ.test) - IQ.test$LogIncome)^2)
+test.error.fit1 <- mean((predict(fit1, IQ.test) - IQ.test$LogIncome)^2)
+test.error.fit2 <- mean((predict(fit2, IQ.test) - IQ.test$LogIncome)^2)
 test.error.fit1
 test.error.fit2
 ```
-**Since fit2 uses all of the predictor variables, we would expect its training error to be always less than that from fit1 because fit2 should provide a better fit to the training data. We can see that the training error for fit2 (1350.224) is less than that of fit1 (1425.36). However, we cannot expect the testing error of fit2 to be always less than that from fit1 because using more predictor variables doesn't always result in a better model, and it is possible that fit2 overfits the training data, which can result in a higher testing error. As we can see, the testing error for fit2 (352.1034) is also less than that of fit1 (364.2824).**
+**Since fit2 uses all of the predictor variables, we would expect its training error to be always less than that from fit1 because fit2 should provide a better fit to the training data. We can see that the training error for fit2 (0.7437005) is less than that of fit1 (0.7900584). However, we cannot expect the testing error of fit2 to be always less than that from fit1 because using more predictor variables doesn't always result in a better model, and it is possible that fit2 overfits the training data, which can result in a higher testing error. As we can see, the testing error for fit2 (0.7656725) is also less than that of fit1 (0.7959225).**
 
     d) You may prune the fit2 to get a tree with small testing error. 
     
 ```{r fit2 prune, echo=F}
 fit2.t <- tree(LogIncome ~., IQ.train)
-fit2.p <- prune.tree(fit2.t, best=3) 
+fit2.p <- prune.tree(fit2.t, best=4) 
 
 par(mfrow=c(1, 2))
 plot(fit2.t)
@@ -719,8 +719,8 @@ plot(fit2.p)
 text(fit2.p)
 title(main="Fit2 best size 4 pruned")
 
-test.error.fit2.t <- sum((predict(fit2.t, IQ.test) - IQ.test$LogIncome)^2)
-test.error.fit2.p <- sum((predict(fit2.p, IQ.test) - IQ.test$LogIncome)^2)
+test.error.fit2.t <- mean((predict(fit2.t, IQ.test) - IQ.test$LogIncome)^2)
+test.error.fit2.p <- mean((predict(fit2.p, IQ.test) - IQ.test$LogIncome)^2)
 test.error.fit2.t 
 test.error.fit2.p
 ```
@@ -765,8 +765,8 @@ data.frame(fitted=fit.bag.2.predict,  obsy=Michelle["LogIncome"])
     c) What is the testing error for the bagged tree. Is it guaranteed that the testing error by bagging the two tree always smaller that either single tree? 
     
 ```{r testing error bagged tree, echo=F}
-test.error.bag <- fit.bag.2.predict - sum(IQ.test$LogIncome)
-test.error.bag
+fit.bag.2.predict.c <- rep(fit.bag.2.predict, length(IQ.test$LogIncome))
+mean((fit.bag.2.predict.c - IQ.test$LogIncome)^2)
 ```
 
 **The testing error for the bagged tree is 0.3014, but it is not guaranteed that the testing error by bagging the two tree always smaller that either single tree because if the single trees already have low variance and are well-tuned, bagging would not offer much benefit and could even increase the testing error.**
@@ -777,16 +777,16 @@ iv. fit4: Build a best possible RandomForest
 
     a) Show the process how you tune mtry and number of trees. Give a very high level explanation how fit4 is built.
     
-**To build fit4 using randomForest, we would first take B many bootstrap samples, then build a deep random tree for each sample using m as the parameter for number of randomly chosen predictors at each split. We want to choose B such that it settles the OOB testing errors, and it seems like we may need 150 trees according to Figure 4.1. Since we have 30 predictors for LogIncome, m ranges from 1 to 30, in which m=30 gives us bagging estimates of non-random trees. We would want to tune the parameter m using OOB testing errors, and the recommended m is p/3=30/3=10.**
+**To build fit4 using randomForest, we would first take B many bootstrap samples, then build a deep random tree for each sample using m as the parameter for number of randomly chosen predictors at each split. We want to choose B such that it settles the OOB testing errors, and it seems like we may need 250 trees according to Figure 3.1. Since we have 30 predictors for LogIncome, m ranges from 1 to 30, in which m=30 gives us bagging estimates of non-random trees. We would want to tune the parameter m using OOB testing errors. As seem from Figure 3.2, it seems like the best value for m is 9.**
     
 ```{r fit4}
 set.seed(1)
 #names(IQ) # we have 30 predictor values
 
 # number of trees
-fit.rf <- randomForest(LogIncome~., IQ.train, mtry=10, ntree=250) # after changing ntree
+fit.rf <- randomForest(LogIncome~., IQ.train, mtry=9, ntree=250) # after changing ntree
 plot(fit.rf, col="red", pch=16, type="p", 
-     main="Figure 4.1")
+     main="Figure 3.1: Testing error vs number of trees")
 
 # testing error vs mtry plot
 rf.error.p <- 1:30  
@@ -799,45 +799,58 @@ for (p in 1:30)
 rf.error.p # oob mse
 
 plot(1:30, rf.error.p, pch=16,
-     main = "Testing errors of mtry with 150 trees",
+     main = "Figure 3.2: Testing errors of mtry with 250 trees",
      xlab="mtry",
      ylab="OOB mse of mtry")
 lines(1:30, rf.error.p)
 
-# mtry = 10 
-fit4 <- randomForest(LogIncome~., IQ.train, mtry=10, ntree=250)
+# mtry = 9
+fit4 <- randomForest(LogIncome~., IQ.train, mtry=9, ntree=250)
 plot(fit4)
-fit4$mse[150] 
+fit4$mse[250] 
 ```
 
-    b) Compare the oob errors form fit4 to the testing errors using your testing data. Are you convinced that oob errors estimate testing error reasonably well.
+    b) Compare the oob errors from fit4 to the testing errors using your testing data. Are you convinced that oob errors estimate testing error reasonably well.
     
-```{r}
-plot(fit4, type="p", pch=16,col="blue", main = "testing errors estimated by oob_mse" )
+```{r oob errors vs testing errors, echo=F}
+fit4.testing <- randomForest(LogIncome~., IQ.train, 
+                             xtest=IQ.test[, -31], ytest=IQ.test[,31], mtry=10, ntree=250)
+plot(1:250, fit4.testing$mse, col="red", pch=16,
+     xlab="number of trees",
+     ylab="mse",
+     main="Figure 3.3: fit4 mse's of RF: blue=oob errors, red=testing errors")
+points(1:250, fit4$mse, col="blue", pch=16)
 ```
+**As seem from Figure 3.3, the oob errors estimate testing errors pretty well.**
     
     c) What is the predicted value for Michelle?
     
 ```{r fit4 predicted value Michelle}
 predict(fit4, Michelle)
-Michelle$LogIncome
 ```
+
+**The predicted LogIncome value for Michelle is 9.736415.**
 
     
 v. Now you have built so many predicted models (fit1 through fit4 in this section). What about build a fit5 which bags fit1 through fit4. Does fit5 have the smallest testing error?
 
 ```{r fit5}
-
+fit.single <- randomForest(LogIncome~., IQ.train, mtry=30, ntree=1)
+fit.bagging <- randomForest(LogIncome~., IQ.train, mtry=30, ntree=250)
+fit.rf <- randomForest(LogIncome~., IQ.train, mtry=9, ntree=250)
+c(fit.single$mse, fit.bagging$mse[250], fit.rf$mse[250])
 ```
 
 vi.  Summarize the results and nail down one best possible final model you will recommend to predict income. Explain briefly why this is the best choice. Finally for the first time evaluate the prediction error using the validating data set. 
 
 ```{r}
+
 ```
 
 vii. Use your final model to predict Michelle's income. 
 
 ```{r}
+
 ```
 
     
