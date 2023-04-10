@@ -835,8 +835,6 @@ v. Now you have built so many predicted models (fit1 through fit4 in this sectio
 
 ```{r fit5, echo=F}
 fit5 <- (predict(fit1, Michelle) + predict(fit2, Michelle) + fit3 + predict(fit4, Michelle))/4
-data.frame(fitted=fit5,  obsy=Michelle["LogIncome"])
-
 test.error.fit5 <- mean((fit5 - Michelle$LogIncome)^2)
 test.error.fit5
 ```
@@ -845,14 +843,18 @@ test.error.fit5
 
 vi.  Summarize the results and nail down one best possible final model you will recommend to predict income. Explain briefly why this is the best choice. Finally for the first time evaluate the prediction error using the validating data set. 
 
-**The **
+```{r val data}
+
+```
+
+**The best possible final model is fit2, which is just one tree that uses all of the predictor variables. This is because we are predicting LogIncome on Michelle, who is just one person, so out of all of the models, fit2 just turns out to be the one that predicts the best for her. If we are predicting on a larger group of people, then it is more likely that the bagged trees will have a lower testing error because there are more people in the sample for the trees to predict on.**
 
 vii. Use your final model to predict Michelle's income. 
 
 ```{r}
-
+data.frame(fitted=fit5,  obsy=Michelle["LogIncome"])
 ```
-
+**Fit5 predicts Michelle's income to be 9.85.**
     
 
 
