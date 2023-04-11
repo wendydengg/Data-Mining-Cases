@@ -843,11 +843,12 @@ test.error.fit5
 
 vi.  Summarize the results and nail down one best possible final model you will recommend to predict income. Explain briefly why this is the best choice. Finally for the first time evaluate the prediction error using the validating data set. 
 
-```{r val data}
-
+```{r val data, echo=F}
+val.error.fit2 <- mean((predict(fit2, IQ.val) - IQ.val$LogIncome)^2)
+val.error.fit2
 ```
 
-**The best possible final model is fit2, which is just one tree that uses all of the predictor variables. This is because we are predicting LogIncome on Michelle, who is just one person, so out of all of the models, fit2 just turns out to be the one that predicts the best for her. If we are predicting on a larger group of people, then it is more likely that the bagged trees will have a lower testing error because there are more people in the sample for the trees to predict on.**
+**The best possible final model is fit2, which is just one tree that uses all of the predictor variables. This is because we are predicting LogIncome on Michelle, who is just one person, so out of all of the models, fit2 just turns out to be the one that predicts the best for her. If we are predicting on a larger group of people, then it is more likely that the bagged trees will have a lower testing error because there are more people in the sample for the trees to predict on. The validation error for fit2 is 0.8504427.**
 
 vii. Use your final model to predict Michelle's income. 
 
