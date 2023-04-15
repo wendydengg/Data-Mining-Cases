@@ -6,6 +6,9 @@ author:
 - Kira Nightingale
 date: 'Due: 11:59Pm,  4/16, 2023'
 output:
+  pdf_document:
+    toc: yes
+    toc_depth: '4'
   html_document:
     code_folding: show
     highlight: haddock
@@ -13,9 +16,6 @@ output:
     toc: yes
     toc_depth: 4
     toc_float: yes
-  pdf_document:
-    toc: yes
-    toc_depth: '4'
   word_document:
     toc: yes
     toc_depth: '4'
@@ -371,7 +371,7 @@ iv.  Using majority votes find the testing errors
   b) From `fit.glm`
 	c) Which one is smaller?
 **The testing error for glm is 0.19 whereas the testing error for LASSO is 0.13; the testing error for LASSO is smaller.**
-```{r testing errors}
+```{r testing errors for lasso and glm}
 predict.glm <- predict(fit.glm, data2.test, type = "response")
 class.glm <- ifelse(predict.glm > .5, "1", "0")
 testerror.glm <- mean(data2.test$rating != class.glm)
@@ -431,7 +431,7 @@ plot(fit.nn) #Assess appropriate number of epochs. Looks like loss bottoms out a
 ```
 
 iii. Report the testing errors using majority vote.
-**Our accuracy for this model is 88.1%, which equates to a misclassification error of 11.9%. The loss for this model is 0.31.**
+**Our accuracy for this model is 87.4%, which equates to a misclassification error of 12.56%. The loss for this model is 0.31.**
 ```{r neural network prediction}
 data2_xtest <- data2.test[-1]
 data2_ytest <- data2.test[1]   
@@ -460,28 +460,125 @@ results
 ### Random Forest  
 
 i. Briefly summarize the method of Random Forest
+**The structures of the trees are very similar to that of using the whole dataset. To build uncorrelated trees, Random Forest builds trees based on bootstrap samples and variables that are randomly chosen each time. For regression trees, the predicted value is the average of the predicted values each time. For classification trees, the predicted label is based on majority vote.**
 
 ii. Now train the data using the training data set by RF and call it `fit.rf`. 
+```{r RF}
+# train the data using RF
+#fit.rf <- randomForest(as.factor(rating)~., data2.train, mtry=sqrt(ncol(data2.train)-1), ntree=500)  This would take about 20 mins, I saved it as .rds file
+#saveRDS(fit.rf, "fit.rf.rds")
+fit.rf <- readRDS("fit.rf.rds")
+plot(fit.rf)
+legend("topright", colnames(fit.rf$err.rate), col = 1:3, cex=0.8, fill=1:3)
+```
   a) Explain how you tune the tuning parameters (`mtry` and `ntree`). 
+    **I used the default settings for classification trees, where `mtry` is the square root of number of variables and `ntree` is 500.**
+    
   b) Get the testing error of majority vote. 
+```{r testing error of RF}
+predict.rf.y <- predict(fit.rf, newdata=data2.test) 
+rf.test.err <- mean(data2.test$rating != predict.rf.y)
+rf.test.err
+```
+**The testing error is 0.1416.**
 
 ###  PCA first
 
 i. Perform PCA (better to do sparse PCA) for the input matrix first. Decide how many PC's you may want to take and why.
+```{r}
+# sparse pca takes very long time, so I just used normal pca
+pca.all <- prcomp(data2[, -c(1,2)], center = TRUE, scale = TRUE)
+# PVE plot
+plot(summary(pca.all)$importance[2, ], pch=16,
+     ylab="PVE",
+     xlab="Number of PCs",
+     main="PVE scree plot of PCA")
+
+#  plot of CPVE
+plot(summary(pca.all)$importance[3, ], pch=16,
+     ylab="Cumulative PVE",
+     xlab="Number of PCs",
+     main="Scree plot of Cumulative PVE ")
+```
+**From the two plots above, we can see 80% of the total variability are explained by 1,000 PCs **
 
 ii. Pick up one of your favorite methods above and build the predictive model with PC's. Say you use RandomForest.
+```{r use RF to build predictive model based on PCs}
+# create a new df with PCs
+data.pca <- data.frame(pca.all$x[, c(1:1000)]) #1000 PCs
+rating <- data2$rating
+data.pca <- cbind(rating, data.pca)
+
+# split data.pca
+set.seed(12345)
+n <- nrow(data.pca)
+
+idx_train_pca <- sample(n, 13000)
+idx_no_train_pca <- (which(! seq(1:n) %in% idx_train_pca))
+idx_test_pca <- sample(idx_no_train_pca, 5000)
+
+data2.train.pca <- data.pca[idx_train_pca,]
+data2.test.pca <- data.pca[idx_test_pca,]
+
+
+
+# use RF to build the model
+# fit.rf.pca <- randomForest(as.factor(rating)~., data2.train.pca, mtry=sqrt(ncol(data2.train.pca)-1), ntree=500) This would also take a while, also saved it as .rds file
+# saveRDS(fit.rf.pca, "fit.rf.pca.rds")
+fit.rf.pca <- readRDS("fit.rf.pca.rds")
+```
 
 iii. What is the testing error? Is this testing error better than that obtained using the original x's? 
+```{r testing error of RF based on pca}
+predict.rf.y.pca <- predict(fit.rf.pca, newdata=data2.test.pca) 
+rf.test.err.pca <- mean(data2.test.pca$rating != predict.rf.y.pca)
+rf.test.err.pca
+```
+**Testing error is 0.223. The testing error of original data is 0.1416. Using orginal data would return better testing error compared to use 1,000 PCs.**
 
 ### Ensemble model
 
 i. Take average of some of the  models built above (also try all of them) and this gives us the fit.em. Report it's testing error. (Do you have more models to be bagged, try it.)
+```{r ensemble}
+# get predicted value from each method
+variable_mtx <- as.matrix(data2.test[,-1])
+lasso_pred <- predict(fit.lasso, variable_mtx, s = fit.lasso$lambda.1se, type="response")
+glm_pred <- predict.glm
+nn_pred <- model %>% predict(variable_mtx)
+nn_pred <- nn_pred[,2]
+rf_pred <- predict(fit.rf, newdata=data2.test, type="prob")[,2]
 
+
+# take average
+fit.em <- (lasso_pred + glm_pred + nn_pred + rf_pred) / 4
+predict.em.y <- ifelse(fit.em > 0.5, 1, 0)
+em.test.err <- mean(data2.test$rating != predict.em.y)
+em.test.err
+```
+**The testing error of the ensemble model is 0.1228.**
 
 ## Final model
 
 Which classifier(s) seem to produce the least testing error? Are you surprised? Report the final model and accompany the validation error. Once again this is THE only time you use the validation data set.  For the purpose of prediction, comment on how would you predict a rating if you are given a review (not a tm output) using our final model? 
 
+```{r final model for validation}
+# get predicted value from each method
+variable_mtx <- as.matrix(data2.val[,-1])
+lasso_pred <- predict(fit.lasso, variable_mtx, s = fit.lasso$lambda.1se, type="response")
+glm_pred <- predict(fit.glm, data2.val, type = "response")
+nn_pred <- model %>% predict(variable_mtx)
+nn_pred <- nn_pred[,2]
+rf_pred <- predict(fit.rf, newdata=data2.val, type="prob")[,2]
+
+
+# take average
+fit.em <- (lasso_pred + glm_pred + nn_pred + rf_pred) / 4
+predict.em.y <- ifelse(fit.em > 0.5, 1, 0)
+em.val.err <- mean(data2.val$rating != predict.em.y)
+em.val.err
+```
+
+**The ensemble model produces the least testing error. This is an expected result, since we are trying to bag uncorrelated predictive equations to reduce the variance. The final model should be the average of four predictive equations, which include lasso, glm, nn and random forest. The validation error is 0.0885. In final model, we calculate the average predicted value from four predictions for each review, when the average predicted value is greater than 0.5, we would say the rating is 1, which indicates good reviews. When the average predicted value is less than 0.5, the rating would be 0, which means bad reviews.**
 
 
 
