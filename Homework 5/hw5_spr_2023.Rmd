@@ -557,7 +557,7 @@ predict.em.y <- ifelse(fit.em > 0.5, 1, 0)
 em.test.err <- mean(data2.test$rating != predict.em.y)
 em.test.err
 ```
-**The testing error of the ensemble model is 0.1228.**
+**The testing error of the ensemble model is 0.1204.**
 
 ## Final model
 
@@ -580,46 +580,46 @@ em.val.err <- mean(data2.val$rating != predict.em.y)
 em.val.err
 ```
 
-**The ensemble model produces the least testing error. This is an expected result, since we are trying to bag uncorrelated predictive equations to reduce the variance. The final model should be the average of four predictive equations, which include lasso, glm, nn and random forest. The validation error is 0.0885. In final model, we calculate the average predicted value from four predictions for each review, when the average predicted value is greater than 0.5, we would say the rating is 1, which indicates good reviews. When the average predicted value is less than 0.5, the rating would be 0, which means bad reviews.**
+**The ensemble model produces the least testing error. This is an expected result, since we are trying to bag uncorrelated predictive equations to reduce the variance. The final model should be the average of four predictive equations, which include lasso, glm, nn and random forest. The validation error is 0.093. In final model, we calculate the average predicted value from four predictions for each review, when the average predicted value is greater than 0.5, we would say the rating is 1, which indicates good reviews. When the average predicted value is less than 0.5, the rating would be 0, which means bad reviews.**
 
 
 
 # Problem 2: IQ and successes
 
-## Background: Measurement of Intelligence 
+## Background: Measurement of Intelligence
 
 Case Study:  how intelligence relates to one's future successes?
 
 **Data needed: `IQ.Full.csv`**
 
-ASVAB (Armed Services Vocational Aptitude Battery) tests have been used as a screening test for those who want to join the army or other jobs. 
+ASVAB (Armed Services Vocational Aptitude Battery) tests have been used as a screening test for those who want to join the army or other jobs.
 
-Our data set IQ.csv is a subset of individuals from the 1979 National Longitudinal Study of 
-Youth (NLSY79) survey who were re-interviewed in 2006. Information about family, personal demographic such as gender, race and education level, plus a set of ASVAB (Armed Services Vocational Aptitude Battery) test scores are available. It is STILL used as a screening test for those who want to join the army! ASVAB scores were 1981 and income was 2005. 
+Our data set IQ.csv is a subset of individuals from the 1979 National Longitudinal Study of
+Youth (NLSY79) survey who were re-interviewed in 2006. Information about family, personal demographic such as gender, race and education level, plus a set of ASVAB (Armed Services Vocational Aptitude Battery) test scores are available. It is STILL used as a screening test for those who want to join the army! ASVAB scores were 1981 and income was 2005.
 
-**Our goals:** 
+**Our goals:**
 
 + Is IQ related to one's successes measured by Income?
 + Is there evidence to show that Females are under-paid?
-+ What are the best possible prediction models to predict future income? 
++ What are the best possible prediction models to predict future income?
 
 
 **The ASVAB has the following components:**
 
 + Science, Arith (Arithmetic reasoning), Word (Word knowledge), Parag (Paragraph comprehension), Numer (Numerical operation), Coding (Coding speed), Auto (Automative and Shop information), Math (Math knowledge), Mechanic (Mechanic Comprehension) and Elec (Electronic information).
 + AFQT (Armed Forces Qualifying Test) is a combination of Word, Parag, Math and Arith.
-+ Note: Service Branch requirement: Army 31, Navy 35, Marines 31, Air Force 36, and Coast Guard 45,(out of 100 which is the max!) 
++ Note: Service Branch requirement: Army 31, Navy 35, Marines 31, Air Force 36, and Coast Guard 45,(out of 100 which is the max!)
 
 **The detailed variable definitions:**
 
-Personal Demographic Variables: 
+Personal Demographic Variables:
 
  * Race: 1 = Hispanic, 2 = Black, 3 = Not Hispanic or Black
  * Gender: a factor with levels "female" and "male"
  * Educ: years of education completed by 2006
- 
-Household Environment: 
- 
+
+Household Environment:
+
 * Imagazine: a variable taking on the value 1 if anyone in the respondent’s household regularly read
 	magazines in 1979, otherwise 0
 * Inewspaper: a variable taking on the value 1 if anyone in the respondent’s household regularly read
@@ -631,7 +631,7 @@ Household Environment:
 
 Variables Related to ASVAB test Scores in 1981 (Proxy of IQ's)
 
-* AFQT: percentile score on the AFQT intelligence test in 1981 
+* AFQT: percentile score on the AFQT intelligence test in 1981
 * Coding: score on the Coding Speed test in 1981
 * Auto: score on the Automotive and Shop test in 1981
 * Mechanic: score on the Mechanic test in 1981
