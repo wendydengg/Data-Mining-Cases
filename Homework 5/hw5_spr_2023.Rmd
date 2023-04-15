@@ -816,7 +816,7 @@ fit2.t <- tree(LogIncome ~., IQ.train,
                 mindev=0.007))
 fit2.p <- prune.tree(fit2.t, best=4)
 #plot the best subtrees
-par(mfrow=c(1, 2))
+par(mfrow=c(1, 2), cex=0.5)
 plot(fit2.t)
 title(main="Fit2 main tree")
 text(fit2.t) # main tree
@@ -832,7 +832,7 @@ iii. fit3: bag two trees
 
 ```{r bootstrap trees, echo=F}
 # bootstrap tree 1
-par(mfrow=c(1, 2))
+par(mfrow=c(1, 2), cex=0.5)
 n=2067
 set.seed(1)
 index1 <- sample(n, n, replace = TRUE)
@@ -850,7 +850,7 @@ boot.2.single.full <- rpart(LogIncome ~., IQ.train2, minsplit=20, cp=.009)
 plot(boot.2.single.full)
 title(main = "Second bootstrap tree")
 text(boot.2.single.full, pretty=0)
-par(mfrow=c(1,1))
+par(mfrow=c(1,1), cex=0.5)
 ```
 
     b) Explain how to get fitted values for Michelle by bagging the two trees obtained above. Do not use the predict().
