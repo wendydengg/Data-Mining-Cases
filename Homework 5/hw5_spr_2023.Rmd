@@ -811,7 +811,7 @@ test.error.fit2
 ```{r fit2 prune, echo=F}
 # fit a tree with large size
 fit2.t <- tree(LogIncome ~., IQ.train,
-          control=tree.control(nobs=nrow(IQ.train2),
+          control=tree.control(nobs=nrow(IQ.train),
                 minsize = 4,
                 mindev=0.007))
 fit2.p <- prune.tree(fit2.t, best=4)
