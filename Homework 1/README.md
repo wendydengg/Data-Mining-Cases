@@ -10,6 +10,7 @@
 1. Are women underrepresented in science in general? 
 2. How does gender relate to the type of educational degree pursued? 
 3. Does the number of higher degrees increase over the years? <br>
+
 **Approach**: perform EDA <br>
 **Results**: In general, we observe evidence that more males than females obtain science and engineering degrees, and this is most notable at the PhD level. Although the total number of science and engineering degrees appear to be increasing over time, the proportion of degrees conferred to females in these fields has remained constant or slightly decreased. One exception to this trend is the field of data science, where we observe increasing numbers of MS degrees being conferred to females over time. <br>
 
