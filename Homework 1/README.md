@@ -1,7 +1,7 @@
 # EDA
 
 ## Case study 1: Audience Size
-**Goal**: estimate the audience size of Wharton Talk Show Business Radio Powerd by the Wharton School
+**Goal**: estimate the audience size of Wharton Talk Show Business Radio Powerd by the Wharton School \n
 **Approach**: calculate the proportion of the Wharton listeners to that of the Sirius listeners
 **Result**: The goal of the study is to estimate the Wharton Radio audience size by calculating the proportion of Wharton listeners to Sirius listeners times the total Sirius listener base. Data was collected via a survey on Amazon Mechanical Turk and ran for a length of 6 days. A total of 1764 responses were collected, which was reduced to 1725 after removal of incomplete/inaccurate responses. Given the total number of Sirius users (51.6 million), and the proportion of Sirius listeners to Wharton listeners in our sample (5.01%), it is estimated that there are 2.58 million listeners of Wharton Radio. A summary of the participants’ demographic information shows that people who took the survey are likely representative of the MTurk population, but they are not representative of the US population since people who take MTurk surveys are generally younger and more educated than the US population. Thus, the main limitation of this study is that we cannot extrapolate the results of the data to the general US population, but we can say that among the MTurk population, those who listen to Wharton radio is about 5.01% (p) of the population.
 
