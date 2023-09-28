@@ -1,39 +1,3 @@
----
-title: " Modern Data Mining, HW 4"
-author:
-- Wendy Deng
-- Ruolan Li
-- Kira Nightingale
-date: '11:59 pm, 03/19, 2023'
-output:
-  html_document:
-    code_folding: show
-    highlight: haddock
-    number_sections: yes
-    theme: lumen
-    toc: yes
-    toc_depth: 4
-    toc_float: yes
-  pdf_document:
-    number_sections: yes
-    toc: yes
-    toc_depth: '4'
-  word_document:
-    toc: yes
-    toc_depth: '4'
-urlcolor: blue
----
-
-
-```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = FALSE, results = "hide", fig.width=8, fig.height=4)
-options(scipen = 0, digits = 3)  # controls base R output
-if(!require('pacman')) {install.packages('pacman')}
-pacman::p_load(bestglm, glmnet, leaps, car, tidyverse, pROC, caret) # add the packages needed
-```
-
-\pagebreak
-
 # Overview
 
 Logistic regression is used for modeling categorical response variables. The simplest scenario is how to identify risk factors of heart disease? In this case the response takes a possible value of `YES` or `NO`. Logit link function is used to connect the probability of one being a heart disease with other potential risk factors such as `blood pressure`, `cholestrol level`, `weight`. Maximum likelihood function is used to estimate unknown parameters. Inference is made based on the properties of MLE. We use AIC to help nailing down a useful final model. Predictions in categorical response case is also termed as `Classification` problems. One immediately application of logistic regression is to provide a simple yet powerful classification boundaries. Various metrics/criteria are proposed to evaluate the quality of a classification rule such as `False Positive`, `FDR` or `Mis-Classification Errors`. 
