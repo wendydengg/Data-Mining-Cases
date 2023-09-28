@@ -1,43 +1,4 @@
----
-title: "Modern Data Mining, HW 2"
-author:
-- Group Member Wendy Deng
-- Group Member Ruolan Li
-- Group Member Kira Nightingale
-date: 'Due: 11:59 PM,  Sunday, 02/12'
-output:
-  html_document:
-    code_folding: show
-    highlight: haddock
-    number_sections: yes
-    theme: lumen
-    toc: yes
-    toc_depth: 4
-    toc_float: yes
-  pdf_document:
-    number_sections: yes
-    toc: yes
-    toc_depth: '4'
-  word_document:
-    toc: yes
-    toc_depth: '4'
-urlcolor: blue
----
-
-
-```{r setup, include=FALSE}
-knitr::opts_chunk$set(fig.width=8, fig.height=4)
-options(scipen = 0, digits = 3)  # controls base R output
-# check if you have ISLR package, if not, install it
-if(!require('pacman')) {install.packages('pacman')}
-pacman::p_load(tidyverse, cluster, factoextra, data.table, irlba, pheatmap, ISLR, stargazer, broom, ggrepel, devtools, htmltools, tidyselect)
-
-```
-
-
-\pagebreak
-
-# Overview {-}
+# Overview 
 
 Principle Component Analysis is widely used in data exploration, dimension reduction, data visualization. The aim is to transform original data into uncorrelated linear combinations of the original data while keeping the information contained in the data. High dimensional data tends to show clusters in lower dimensional view. 
 
@@ -67,7 +28,7 @@ For supervised learning, we try to find out how does a set of predictors relate 
 - `brca_subtype.csv`
 - `brca_x_patient.csv`
 
-# Case study 1: Self-seteem 
+# Case study 1: Self-eseteem 
 
 Self-esteem generally describes a person's overall sense of self-worthiness and personal value. It can play significant role in one's motivation and success throughout the life. Factors that influence self-esteem can be inner thinking, health condition, age, life experiences etc. We will try to identify possible factors in our data that are related to the level of self-esteem. 
 
