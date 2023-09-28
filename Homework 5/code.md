@@ -1,36 +1,3 @@
----
-title: "Modern Data Mining - HW 5"
-author:
-- Wendy Deng
-- Ruolan Li
-- Kira Nightingale
-date: 'Due: 11:59Pm,  4/16, 2023'
-output:
-  html_document:
-    code_folding: show
-    highlight: haddock
-    theme: lumen
-    toc: yes
-    toc_depth: 4
-    toc_float: yes
-  pdf_document:
-    toc: yes
-    toc_depth: '4'
-  word_document:
-    toc: yes
-    toc_depth: '4'
-urlcolor: blue  
----
-
-```{r setup, include=FALSE}
-knitr::opts_chunk$set(fig.height=4, fig.width=6, warning = F, error = F, echo = F, results = "hide")
-if (!require("pacman")) install.packages("pacman")
-pacman::p_load(randomForest, tree, ISLR, rpart, rattle, pROC, partykit, ggplot2, glmnet, leaps, dplyr, keras, neuralnet, imager, ranger, lubridate, tm, RColorBrewer, wordcloud, tensorflow)
-```
-
-
-
-
 # Overview
 
 For the purpose of predictions, a nonlinear model or a model free approach could be beneficial. 
